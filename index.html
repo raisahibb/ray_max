@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RAYMAX — Solar Tracking System</title>
+<meta name="description" content="Real-time solar panel tracking system with GPS, live weather, and 3D visualization."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+
+<!-- React 18 + ReactDOM CDN -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<!-- Babel Standalone — transpiles JSX in the browser -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+<!-- React mounts here -->
+<div id="root"></div>
+
+<!-- Utility functions (pure JS — no DOM, no React) -->
+<script src="script.js"></script>
+
+<!-- React App (JSX — transpiled by Babel in the browser) -->
+<script type="text/babel" src="App.jsx"></script>
+
+</body>
+</html>
