@@ -35,11 +35,11 @@ function WChip({ icon, value }) {
 // NAVBAR
 // ──────────────────────────────────────────
 
-function Navbar({ clock, date, locPill, theme, onToggleTheme }) {
+function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onProfileClick }) {
   return (
     <nav className="navbar">
       <div className="nav-logo">
-        <div className="logo-icon">☀️</div>
+        <div className="logo-icon"><img src="logo.png" alt="RAYMAX logo" /></div>
         <div className="logo-text">
           <div className="lt">RAYMAX</div>
           <div className="ls">Solar Tracking System</div>
@@ -51,10 +51,51 @@ function Navbar({ clock, date, locPill, theme, onToggleTheme }) {
       </div>
       <div className="nav-right">
         <div className="loc-pill">📍 <span>{locPill}</span></div>
+
+        {/* User avatar — shows name initial + tooltip */}
+        {currentUser && (
+          <div
+            title={
+              currentUser.loginMethod === 'mobile'
+                ? `${currentUser.displayName} (${currentUser.mobile})`
+                : currentUser.email
+            }
+            onClick={onProfileClick}
+            style={{
+              width: 32, height: 32, borderRadius: "50%",
+              background: currentUser.loginMethod === 'mobile'
+                ? "linear-gradient(135deg,#34c759,#30d158)"   /* green for mobile */
+                : "linear-gradient(135deg,#ff9f0a,#ff6b00)",  /* orange for email */
+              color: "#fff", fontWeight: 800, fontSize: ".85rem",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0, cursor: "pointer",
+              boxShadow: currentUser.loginMethod === 'mobile'
+                ? "0 2px 8px rgba(52,199,89,.4)"
+                : "0 2px 8px rgba(255,159,10,.4)"
+            }}
+          >
+            {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+          </div>
+        )}
+
         <div className="live-badge"><LiveDot />LIVE</div>
         <button className="icon-btn" id="themeBtn" onClick={onToggleTheme}>
           {theme === "dark" ? "☀️" : "🌙"}
         </button>
+
+        {/* Logout button — clears both Firebase session and localStorage mobile session */}
+        <button
+          className="icon-btn"
+          id="logoutBtn"
+          title="Sign Out"
+          onClick={async () => {
+            // 1. Clear custom mobile session
+            localStorage.removeItem('raymax-mobile-user');
+            // 2. Sign out of Firebase (no-op if not signed in via Firebase)
+            try { await window.auth.signOut(); } catch (_) {}
+            window.location.href = './auth/index.html';
+          }}
+        >🚪</button>
       </div>
     </nav>
   );
@@ -118,9 +159,9 @@ function SolarPanel3D({ panelTilt, panelAzimuth, panelVoltage, efficiency }) {
 // ──────────────────────────────────────────
 
 function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
-  const sunPos = sunToXY(sunAz, sunEl);
+  const sunPos   = sunToXY(sunAz, sunEl);
   const panelPos = sunToXY(panelAzimuth, panelTilt);
-  const isDay = sunEl > 0;
+  const isDay    = sunEl > 0;
 
   return (
     <div className="glass-card">
@@ -129,29 +170,34 @@ function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
         <svg id="sunPathSVG" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <radialGradient id="energyGrad" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="#ff9f0a"/>
+              <stop offset="0%"   stopColor="#ff9f0a"/>
               <stop offset="100%" stopColor="#ff6b00"/>
             </radialGradient>
             <filter id="sunGlow">
               <feGaussianBlur stdDeviation="3" result="blur"/>
               <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
             </filter>
+            {/* Hard-clip everything to the outer compass ring so the path never bleeds out */}
+            <clipPath id="compassClip">
+              <circle cx="130" cy="130" r="117"/>
+            </clipPath>
           </defs>
           <circle cx="130" cy="130" r="118" className="c-ring"/>
-          <circle cx="130" cy="130" r="78" className="c-ring-mid"/>
-          <circle cx="130" cy="130" r="39" className="c-ring-mid"/>
-          <line x1="130" y1="6" x2="130" y2="254" className="c-cross"/>
-          <line x1="6" y1="130" x2="254" y2="130" className="c-cross"/>
-          <text x="130" y="20" className="c-lbl" textAnchor="middle">N</text>
+          <circle cx="130" cy="130" r="78"  className="c-ring-mid"/>
+          <circle cx="130" cy="130" r="39"  className="c-ring-mid"/>
+          <line x1="130" y1="6"   x2="130" y2="254" className="c-cross"/>
+          <line x1="6"   y1="130" x2="254" y2="130" className="c-cross"/>
+          <text x="130" y="20"  className="c-lbl" textAnchor="middle">N</text>
           <text x="130" y="252" className="c-lbl" textAnchor="middle">S</text>
           <text x="250" y="134" className="c-lbl" textAnchor="middle">E</text>
-          <text x="10" y="134" className="c-lbl" textAnchor="middle">W</text>
+          <text x="10"  y="134" className="c-lbl" textAnchor="middle">W</text>
           <text x="130" y="104" className="c-lbl" textAnchor="middle" opacity=".6">60°</text>
-          <text x="130" y="65" className="c-lbl" textAnchor="middle" opacity=".6">30°</text>
-          {pathD && <path d={pathD} className="sun-path-line" fill="none"/>}
+          <text x="130" y="65"  className="c-lbl" textAnchor="middle" opacity=".6">30°</text>
+          {/* Sun path clipped to compass circle — no overrun */}
+          {pathD && <path d={pathD} className="sun-path-line" fill="none" clipPath="url(#compassClip)" />}
           <line x1="130" y1="130" x2={panelPos.x} y2={panelPos.y} className="panel-dir-line"/>
-          <circle cx={sunPos.x} cy={sunPos.y} r="14" className="sun-dot-glow" filter="url(#sunGlow)"/>
-          <circle cx={sunPos.x} cy={sunPos.y} r="9" className="sun-dot-inner" filter="url(#sunGlow)"/>
+          <circle cx={sunPos.x} cy={sunPos.y} r="14" className="sun-dot-glow"  filter="url(#sunGlow)"/>
+          <circle cx={sunPos.x} cy={sunPos.y} r="9"  className="sun-dot-inner" filter="url(#sunGlow)"/>
           <circle cx="130" cy="130" r="3" className="zenith-dot"/>
         </svg>
       </div>
@@ -549,10 +595,440 @@ function ToastContainer({ toasts }) {
 }
 
 // ──────────────────────────────────────────
+// ALERT BAR
+// ──────────────────────────────────────────
+
+// AlertBar — collapsible sticky ribbon below navbar
+function AlertBar({ alerts, open, onToggle, onDismiss }) {
+  if (!alerts || alerts.length === 0) return null;
+  return (
+    <div className={`alert-bar${open ? '' : ' alert-bar--collapsed'}`}>
+      {/* Pills — only visible when open */}
+      {open && alerts.map((a, i) => (
+        <div key={i} className={`alert-pill ${a.type}`}>
+          <span>{a.icon}</span>
+          <span>{a.msg}</span>
+          {/* Close — removes this specific alert by index */}
+          <button
+            className="alert-dismiss"
+            aria-label="Dismiss alert"
+            onClick={() => onDismiss(i)}
+          >✕</button>
+        </div>
+      ))}
+
+      {/* Chevron toggle — always visible, bigger arrow */}
+      <button
+        className="alert-toggle"
+        onClick={onToggle}
+        title={open ? 'Hide alerts' : 'Show alerts'}
+        aria-label={open ? 'Collapse alerts' : 'Expand alerts'}
+        style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+      >
+        {/* SVG chevron — 16px, clearly visible */}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+             style={{ transition: 'transform .25s', transform: open ? 'rotate(0deg)' : 'rotate(180deg)' }}>
+          <path d="M4 10L8 6L12 10" stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        {!open && <span style={{ fontSize: '.75rem', fontWeight: 700 }}>
+          {alerts.length} alert{alerts.length > 1 ? 's' : ''}
+        </span>}
+      </button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
+// WEBSOCKET PANEL
+// ──────────────────────────────────────────
+
+function WSPanel({ ip, onIpChange, status, onConnect, onDisconnect, lastSeen }) {
+  const isConn  = status === "connected";
+  const isRecon = status === "reconnecting";
+  return (
+    <div className="ws-panel">
+      <div className={`ws-status-dot ${status}`} />
+      <div style={{flex:1}}>
+        <div style={{fontWeight:700, fontSize:".88rem", color:"var(--t1)"}}>
+          ESP32 WebSocket {isConn ? "— Connected" : isRecon ? "— Reconnecting…" : "— Disconnected"}
+        </div>
+        {lastSeen && <div className="ws-info-text">Last data: {lastSeen}</div>}
+      </div>
+      <input
+        className="ws-ip-input"
+        value={ip}
+        onChange={e => onIpChange(e.target.value)}
+        placeholder="192.168.1.100"
+        disabled={isConn || isRecon}
+      />
+      <button
+        className={`ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`}
+        onClick={isConn || isRecon ? onDisconnect : onConnect}
+      >
+        {isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect"}
+      </button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
+// LDR WIDGET
+// ──────────────────────────────────────────
+
+function LDRWidget({ data }) {
+  const vals = data || { ldr_top:0, ldr_bottom:0, ldr_left:0, ldr_right:0 };
+  const items = [
+    { label:"Top",    val: vals.ldr_top    },
+    { label:"Bottom", val: vals.ldr_bottom },
+    { label:"Left",   val: vals.ldr_left   },
+    { label:"Right",  val: vals.ldr_right  },
+  ];
+  return (
+    <div className="widget ldr-widget">
+      <div className="w-icon">☀️</div>
+      <div className="w-title">LDR Sensors</div>
+      <div className="w-main" style={{fontSize:"1rem"}}>
+        {data ? "Live from ESP32" : "No ESP32 data"}
+      </div>
+      <div className="ldr-grid">
+        {items.map(it => (
+          <div key={it.label} className="ldr-item">
+            <div className="ldr-label">{it.label}</div>
+            <div className="ldr-value">{it.val}</div>
+            <div className="ldr-bar">
+              <div className="ldr-bar-fill" style={{width: Math.min(100, it.val / 1023 * 100).toFixed(1) + "%"}} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
+// SERIAL MONITOR
+// ──────────────────────────────────────────
+
+function SerialMonitor({ log, onClear }) {
+  const endRef = useRef(null);
+  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior:"smooth" }); }, [log]);
+  return (
+    <div className="widget serial-widget">
+      <div className="w-icon">📡</div>
+      <div className="w-title">Serial Monitor — ESP32 Live Feed</div>
+      <div className="serial-monitor">
+        {log.length === 0
+          ? <span className="serial-line" style={{opacity:.4}}>Waiting for ESP32 data…</span>
+          : log.map((l, i) => (
+            <span key={i} className="serial-line">
+              <span className="serial-time">[{l.time}]</span>{l.text}
+            </span>
+          ))
+        }
+        <div ref={endRef} />
+      </div>
+      <button className="serial-clear-btn" onClick={onClear}>🗑 Clear Log</button>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
+// HISTORY CHARTS (Chart.js via CDN global)
+// ──────────────────────────────────────────
+
+function HistoryCharts({ tick }) {
+  const powerRef = useRef(null);
+  const voltRef  = useRef(null);
+  const tempRef  = useRef(null);
+  const charts   = useRef({});
+
+  useEffect(() => {
+    const history = HistoryBuffer.getAll();
+    const labels  = history.map(h => h.time);
+    const powers  = history.map(h => h.power);
+    const volts   = history.map(h => h.voltage);
+    const temps   = history.map(h => h.temperature);
+
+    const chartConf = (label, data, color, ref, key) => {
+      // Update existing chart in-place to avoid re-animation
+      if (charts.current[key]) {
+        charts.current[key].data.labels = labels;
+        charts.current[key].data.datasets[0].data = data;
+        charts.current[key].update("none");
+        return;
+      }
+      const isDark    = document.documentElement.dataset.theme === "dark";
+      const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
+      const textColor = isDark ? "#6b7394" : "#9097b8";
+      charts.current[key] = new Chart(ref.current, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data,
+            borderColor: color,
+            backgroundColor: color.replace("1)", "0.1)"),
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: textColor, font:{size:10}, maxTicksLimit:6 }, grid: { color: gridColor } },
+            y: { ticks: { color: textColor, font:{size:10} },                  grid: { color: gridColor } }
+          }
+        }
+      });
+    };
+
+    if (powerRef.current) chartConf("Power (W)",        powers, "rgba(255,159,10,1)", powerRef, "power");
+    if (voltRef.current)  chartConf("Voltage (V)",      volts,  "rgba(0,122,255,1)",  voltRef,  "volt");
+    if (tempRef.current)  chartConf("Temperature (°C)", temps,  "rgba(255,59,48,1)",  tempRef,  "temp");
+  }, [tick]);
+
+  return (
+    <div className="chart-section">
+      <div className="chart-section-title">📈 Historical Data — Last 60 readings</div>
+      <div className="charts-grid">
+        {[
+          { ref: powerRef, label: "⚡ Power Output (W)" },
+          { ref: voltRef,  label: "🔋 Voltage (V)"      },
+          { ref: tempRef,  label: "🌡 Temperature (°C)" },
+        ].map((c, i) => (
+          <div key={i} className="chart-card">
+            <div className="chart-card-label">{c.label}</div>
+            <div className="chart-canvas-wrap">
+              <canvas ref={c.ref} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
+// PROFILE OVERLAY PORTAL
+// ──────────────────────────────────────────
+function ProfileModal({ isOpen, onClose, currentUser }) {
+  const [linking, setLinking] = useState(false);
+  const [linkInput, setLinkInput] = useState('');
+  const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  if (!isOpen || !currentUser) return null;
+
+  async function handleLinkAccount(e) {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (!linkInput) return;
+    setLinking(true);
+    try {
+      if (currentUser.loginMethod === 'mobile') {
+        const docRef = window.db.collection('users_mobile').doc(currentUser.uid);
+        await docRef.update({ email: linkInput });
+      } else {
+        const docRef = window.db.collection('users').doc(currentUser.uid);
+        await docRef.update({ mobile: linkInput });
+      }
+      setSuccess('Account linked successfully.');
+      setLinkInput('');
+    } catch(err) {
+      setError('Failed to link: ' + err.message);
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  async function handleUpdatePassword(e) {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    const { current, newPass, confirm } = passwordForm;
+    if (!current || !newPass || !confirm) return;
+    if (newPass !== confirm) return setError('Passwords do not match');
+
+    setLinking(true);
+    try {
+      if (currentUser.loginMethod === 'mobile') {
+        const docRef = window.db.collection('users_mobile').doc(currentUser.uid);
+        const sn = await docRef.get();
+        if(sn.data().password !== current) throw new Error('Incorrect current password');
+        await docRef.update({ password: newPass });
+      } else {
+         const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, current);
+         await window.auth.currentUser.reauthenticateWithCredential(cred);
+         await window.auth.currentUser.updatePassword(newPass);
+      }
+      setSuccess('Password updated successfully.');
+      setPasswordForm({ current:'', newPass:'', confirm:'' });
+    } catch(err) {
+      setError(err.message);
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  return (
+    <div className="glass-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={e => e.stopPropagation()}>
+        <button className="pm-close" onClick={onClose}>✕</button>
+
+        {/* Header */}
+        <div className="pm-header">
+           <div className="pm-avatar">
+             {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+             <div className="pm-avatar-edit">📷</div>
+           </div>
+           <h2>{currentUser.displayName}</h2>
+           <p>{currentUser.loginMethod === 'mobile' ? currentUser.mobile : currentUser.email}</p>
+        </div>
+
+        {error && <div className="pm-msg-error">{error}</div>}
+        {success && <div className="pm-msg-success">{success}</div>}
+
+        {/* Binding Section */}
+        <div className="pm-section">
+          <h3>{currentUser.loginMethod === 'mobile' ? '📧 Link Email Address' : '📱 Link Mobile Number'}</h3>
+          <div className="pm-input-wrap">
+             <input className="pm-input" 
+                placeholder={currentUser.loginMethod === 'mobile' ? 'you@email.com' : '9876543210'} 
+                value={linkInput} onChange={e => setLinkInput(e.target.value)} />
+          </div>
+          <button className="pm-btn-sec" style={{marginTop: 8}} disabled={linking} onClick={handleLinkAccount}>
+             {linking ? 'Updating...' : 'Link Account'}
+          </button>
+        </div>
+
+        {/* Password Section */}
+        <div className="pm-section">
+          <h3>🔒 Change Password</h3>
+          <div className="pm-input-wrap">
+             <input className="pm-input" type="password" placeholder="Current Password" 
+                value={passwordForm.current} onChange={e => setPasswordForm({...passwordForm, current: e.target.value})} />
+          </div>
+          <div className="pm-input-wrap">
+             <input className="pm-input" type="password" placeholder="New Password" 
+                value={passwordForm.newPass} onChange={e => setPasswordForm({...passwordForm, newPass: e.target.value})} />
+          </div>
+          <div className="pm-input-wrap">
+             <input className="pm-input" type="password" placeholder="Confirm Password" 
+                value={passwordForm.confirm} onChange={e => setPasswordForm({...passwordForm, confirm: e.target.value})} />
+          </div>
+          <button className="pm-btn" style={{marginTop: 8}} disabled={linking} onClick={handleUpdatePassword}>
+             {linking ? 'Updating...' : 'Update Password'}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────
 // MAIN APP
 // ──────────────────────────────────────────
 
 function App() {
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  // ── Consolidated Auth Guard ──
+  // Accepts EITHER a Firebase Auth session (email login)
+  // OR a localStorage mobile session (custom Firestore login).
+  // currentUser shape is normalised to: { uid, displayName, email, loginMethod }
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    // ── Reusable redirect helper
+    function deny() {
+      localStorage.removeItem('raymax-mobile-user');
+      window.location.href = './auth/index.html';
+    }
+
+    // ── Step 1: Subscribe to Firebase Auth (handles Email users)
+    const unsub = window.auth.onAuthStateChanged(async firebaseUser => {
+
+      if (firebaseUser && firebaseUser.emailVerified) {
+        // ✅ EMAIL USER — verified by Firebase Auth
+        setCurrentUser({
+          uid:         firebaseUser.uid,
+          displayName: firebaseUser.displayName || firebaseUser.email || 'User',
+          email:       firebaseUser.email       || '',
+          mobile:      null,
+          loginMethod: 'email',
+        });
+        setAuthLoading(false);
+        return;
+      }
+
+      // ── Step 2: No Firebase Auth session — check for mobile session token
+      const mobileRaw = localStorage.getItem('raymax-mobile-user');
+      if (!mobileRaw) {
+        // Neither session found → deny access
+        deny();
+        return;
+      }
+
+      // Parse the token
+      let token;
+      try {
+        token = JSON.parse(mobileRaw);
+      } catch (_) {
+        deny();
+        return;
+      }
+
+      if (!token.uid || !token.mobile) {
+        // Malformed token → deny
+        deny();
+        return;
+      }
+
+      // ── Step 3: VERIFY the mobile session against Firestore (single doc fetch)
+      // This makes the session Firestore-dependent — a forged localStorage token
+      // will fail here because the doc won't exist in users_mobile.
+      try {
+        const doc = await window.db
+          .collection('users_mobile')
+          .doc(token.uid)
+          .get();
+
+        if (!doc.exists) {
+          // Doc was deleted or uid was forged → deny
+          deny();
+          return;
+        }
+
+        const data = doc.data();
+
+        // ✅ MOBILE USER — verified via Firestore
+        setCurrentUser({
+          uid:         doc.id,
+          displayName: data.fullName || token.mobile || 'User',
+          email:       data.mobile   || '',     // mobile fills the email slot in UI
+          mobile:      data.mobile   || '',
+          loginMethod: 'mobile',
+        });
+        setAuthLoading(false);
+
+      } catch (err) {
+        // Firestore read failed (offline / permission denied) → conservative deny
+        console.error('[AUTH] Firestore verification failed:', err.message);
+        deny();
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
   // ── Theme
   const [theme, setTheme] = useState("light");
 
@@ -583,20 +1059,34 @@ function App() {
   const [panelTilt, setPanelTilt] = useState(0);
   const [panelAzimuth, setPanelAzimuth] = useState(180);
 
-  // ── Energy (persisted in localStorage)
-  const [dailyWh, setDailyWh] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('raymax_dailyWh') || 'null');
-      if (saved && saved.date === new Date().toDateString()) {
-        return saved.wh;
-      }
-    } catch(e) {}
-    return 0;
-  });
+  // ── Energy (persisted in Firestore solar_sessions collection)
+  const [dailyWh, setDailyWh] = useState(0);
   const lastPwrRef = useRef(Date.now());
   const [cloudCover, setCloudCover] = useState(0);
   const [humid, setHumid] = useState(50);
   const [pressure, setPressure] = useState(1013);
+
+  // ── WebSocket
+  const [wsIP, setWsIP]         = useState("192.168.1.100");
+  const [wsStatus, setWsStatus] = useState("disconnected"); // "connected"|"disconnected"|"reconnecting"
+  const [wsLastSeen, setWsLastSeen] = useState(null);
+  const wsRef = useRef(null);
+
+  // ── ESP32 live sensor data (overrides simulated values when connected)
+  // shape: { ldr_top, ldr_bottom, ldr_left, ldr_right, voltage, temperature, servo_tilt, servo_azimuth }
+  const [esp32Data, setEsp32Data] = useState(null);
+
+  // ── Alerts + bar visibility toggle
+  const [alerts, setAlerts]                   = useState([{ type:"ok", icon:"✅", msg:"All systems nominal" }]);
+  const [dismissedAlerts, setDismissedAlerts] = useState([]);
+  const [alertBarOpen,    setAlertBarOpen]    = useState(true);   // collapse/expand the alert ribbon
+
+  // ── Serial monitor (last 20 lines)
+  const [serialLog, setSerialLog] = useState([]);
+  const serialLogRef = useRef([]);
+
+  // ── History tick — increments every time HistoryBuffer gets a new entry
+  const [historyTick, setHistoryTick] = useState(0);
 
   // ── Toasts
   const [toasts, setToasts] = useState([]);
@@ -616,6 +1106,43 @@ function App() {
   useEffect(() => { sunriseRef.current = sunrise; }, [sunrise]);
   useEffect(() => { sunsetRef.current = sunset; }, [sunset]);
   useEffect(() => { cloudRef.current = cloudCover; }, [cloudCover]);
+
+  // ── Load today's dailyWh from Firestore once currentUser is known
+  // Uses currentUser.uid for email users, or mobile number for mobile users.
+  useEffect(() => {
+    if (!currentUser) return;
+    const today  = new Date().toDateString();
+    const sessId = currentUser.loginMethod === 'mobile'
+      ? (currentUser.mobile + '_' + today)    // mobile sessions keyed by number
+      : (currentUser.uid   + '_' + today);    // email sessions keyed by Firebase uid
+    window.db
+      .collection('solar_sessions')
+      .doc(sessId)
+      .get()
+      .then(doc => {
+        if (doc.exists) setDailyWh(doc.data().daily_wh || 0);
+      });
+  }, [currentUser]);
+
+  // ── Save / merge today's session doc to Firestore
+  const saveTodaySession = async (wh, pwr) => {
+    if (!currentUser) return;
+    const today  = new Date().toDateString();
+    const sessId = currentUser.loginMethod === 'mobile'
+      ? (currentUser.mobile + '_' + today)
+      : (currentUser.uid   + '_' + today);
+    await window.db.collection('solar_sessions').doc(sessId).set({
+      user_id:       currentUser.loginMethod === 'mobile' ? currentUser.mobile : currentUser.uid,
+      login_method:  currentUser.loginMethod || 'email',
+      date:          today,
+      daily_wh:      wh,
+      peak_power:    pwr,
+      location_lat:  latRef.current,
+      location_lon:  lonRef.current,
+      location_name: geoData.city || '',
+      updated_at:    firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  };
 
   // ── Show toast
   const showToast = useCallback((icon, msg) => {
@@ -672,9 +1199,7 @@ function App() {
     lastPwrRef.current = now2;
     setDailyWh(prev => {
       const next = prev + pwr * dt;
-      try {
-        localStorage.setItem('raymax_dailyWh', JSON.stringify({ wh: next, date: new Date().toDateString() }));
-      } catch(e) {}
+      saveTodaySession(next, pwr);
       return next;
     });
 
@@ -688,8 +1213,37 @@ function App() {
     return () => clearInterval(id);
   }, [doUpdate]);
 
-  // ── Geolocation
+  // ── ESP32 data side-effects: alerts + history + serial log
   useEffect(() => {
+    if (!esp32Data) return;
+
+    // Run alert checks against live sensor data
+    const pwr = calcPower(sunEl, sunAz, panelTilt, panelAzimuth, cloudCover);
+    const newAlerts = checkAlerts({ ...esp32Data, power: pwr });
+    setAlerts(newAlerts.filter(a => !dismissedAlerts.includes(a.msg)));
+
+    // Push to circular history buffer and nudge chart re-render
+    HistoryBuffer.add({
+      time:        new Date().toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", hour12:false}),
+      power:       pwr,
+      voltage:     esp32Data.voltage,
+      temperature: esp32Data.temperature
+    });
+    setHistoryTick(t => t + 1);
+
+    // Append to serial log (keep last 20)
+    const line = {
+      time: new Date().toLocaleTimeString("en-IN", { hour12:false }),
+      text: JSON.stringify(esp32Data)
+    };
+    const next = [...serialLogRef.current, line].slice(-20);
+    serialLogRef.current = next;
+    setSerialLog([...next]);
+  }, [esp32Data]);
+
+  // ── Geolocation (gated on currentUser — only runs after auth guard confirms session)
+  useEffect(() => {
+    if (!currentUser) return;
     if (!navigator.geolocation) { showToast("⚠️","Geolocation not supported"); return; }
 
     const onSuccess = async (pos) => {
@@ -736,7 +1290,7 @@ function App() {
         } catch(e) {}
 
         // fetch weather
-        window._loadWeather(la, lo);
+        window._raymaxLoadWeather(la, lo);
       }
     };
 
@@ -752,12 +1306,12 @@ function App() {
       setSunrise(sr); setSunset(se);
       sunriseRef.current=sr; sunsetRef.current=se;
       showToast("📍","Using default location — enable GPS for accuracy");
-      window._loadWeather(la, lo);
+      window._raymaxLoadWeather(la, lo);
       doUpdate();
     };
 
-    // ── Shared weather loader — defined before watchPosition so callbacks can call it
-    window._loadWeather = async (la, lo) => {
+    // ── Shared weather loader — renamed to avoid Supabase namespace collision
+    window._raymaxLoadWeather = async (la, lo) => {
       setWeatherLoading(true);
       setWeatherError(null);
       try {
@@ -786,17 +1340,44 @@ function App() {
     };
 
     navigator.geolocation.watchPosition(onSuccess, onError, {enableHighAccuracy:true, maximumAge:30000});
-    showToast("☀️","SolarTrack Pro initialized!");
+    showToast("☀️","RAYMAX initialized!");
 
     // Weather refresh every 10 min
     const weatherId = setInterval(() => {
-      if (latRef.current) window._loadWeather(latRef.current, lonRef.current);
+      if (latRef.current) window._raymaxLoadWeather(latRef.current, lonRef.current);
     }, 600000);
 
     return () => clearInterval(weatherId);
-  }, []);
+  }, [currentUser]);  // ← gate on currentUser so GPS/weather only start after auth confirms
 
   // ── Mode change
+  // ── WebSocket connect / disconnect
+  const handleWsConnect = () => {
+    if (wsRef.current) wsRef.current.disconnect();
+    const ws = new RaymaxWS(wsIP, 81);
+    ws.onStatusChange(status => {
+      setWsStatus(status);
+      showToast(
+        status === "connected" ? "🔌" : status === "reconnecting" ? "🔄" : "❌",
+        status === "connected" ? "ESP32 Connected!"
+          : status === "reconnecting" ? "Reconnecting to ESP32…"
+          : "ESP32 Disconnected"
+      );
+    });
+    ws.onData(data => {
+      setEsp32Data(data);
+      setWsLastSeen(new Date().toLocaleTimeString("en-IN", { hour12:false }));
+    });
+    ws.connect();
+    wsRef.current = ws;
+  };
+
+  const handleWsDisconnect = () => {
+    if (wsRef.current) wsRef.current.disconnect();
+    setWsStatus("disconnected");
+    setEsp32Data(null);
+  };
+
   const handleModeChange = (m) => {
     setMode(m);
     modeRef.current = m;
@@ -808,10 +1389,15 @@ function App() {
   const efficiency = calcEfficiency(power);
   const uv = calcUV(sunEl, cloudCover);
 
-  // Arduino panel voltage simulation: voltage = sensor * (5.0/1023.0) * 3
-  // Sensor 0-1023 mapped from power output (0-400W → 0-1023)
-  const simSensor = Math.round((power / 400) * 1023);
-  const panelVoltage = simSensor * (5.0 / 1023.0) * 3;
+  // Voltage: use real ESP32 reading when connected, else simulate Arduino ADC formula
+  // Arduino formula: voltage = analogRead(A0) * (5.0/1023.0) * 3
+  const simSensor   = Math.round((power / 400) * 1023);
+  const panelVoltage = (esp32Data && wsStatus === "connected")
+    ? esp32Data.voltage
+    : simSensor * (5.0 / 1023.0) * 3;
+
+  // Real panel temperature from ESP32 (null when not connected)
+  const realTemp = (esp32Data && wsStatus === "connected") ? esp32Data.temperature : null;
 
   // Daylight
   let dayLen="--h --m", sunriseStr="--:--", sunsetStr="--:--", daypct=0;
@@ -823,6 +1409,17 @@ function App() {
     sunsetStr=fmtTime(sunset);
     daypct=Math.min(100,Math.max(0,(Date.now()-sunrise.getTime())/total*100));
   }
+
+  // ── Loading splash — shown while Firebase auth resolves
+  if (authLoading) return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', flexDirection: 'column', gap: '16px'
+    }}>
+      <div style={{fontSize: '2rem'}}>☀️</div>
+      <div style={{fontSize: '1rem', color: 'var(--t3)', fontWeight: 600}}>Loading RAYMAX...</div>
+    </div>
+  );
 
   return (
     <>
@@ -839,6 +1436,16 @@ function App() {
           locPill={locPill}
           theme={theme}
           onToggleTheme={toggleTheme}
+          currentUser={currentUser}
+          onProfileClick={() => setIsProfileOpen(true)}
+        />
+
+        {/* Alert Bar — dismiss removes by index so the pill actually disappears */}
+        <AlertBar
+          alerts={alerts}
+          open={alertBarOpen}
+          onToggle={() => setAlertBarOpen(v => !v)}
+          onDismiss={idx => setAlerts(prev => prev.filter((_, i) => i !== idx))}
         />
 
         <main>
@@ -859,26 +1466,57 @@ function App() {
             />
           </div>
 
+          {/* WebSocket Connection Panel */}
+          <WSPanel
+            ip={wsIP}
+            onIpChange={setWsIP}
+            status={wsStatus}
+            onConnect={handleWsConnect}
+            onDisconnect={handleWsDisconnect}
+            lastSeen={wsLastSeen}
+          />
+
           {/* Control Panel */}
           <ControlPanel
             mode={mode}
             panelTilt={panelTilt}
             panelAzimuth={panelAzimuth}
             onModeChange={handleModeChange}
-            onSliderX={v => { setPanelTilt(v); }}
-            onSliderY={v => { setPanelAzimuth(v); }}
+            onSliderX={v => {
+              setPanelTilt(v);
+              if (wsRef.current && wsRef.current.isConnected()) {
+                wsRef.current.sendCommand(v, panelAzimuth);
+              }
+            }}
+            onSliderY={v => {
+              setPanelAzimuth(v);
+              if (wsRef.current && wsRef.current.isConnected()) {
+                wsRef.current.sendCommand(panelTilt, v);
+              }
+            }}
           />
 
           {/* Widgets */}
           <div className="widgets-section">
             <div className="section-title">Live Dashboard</div>
+
+            {/* Welcome greeting — OUTSIDE the grid so it doesn't occupy a cell */}
+            {currentUser && (
+              <div style={{
+                fontSize: ".82rem", color: "var(--t3)", fontWeight: 500,
+                padding: "0 4px 10px 4px"
+              }}>
+                👋 Welcome back, {currentUser.displayName || currentUser.email}
+              </div>
+            )}
+
             <div className="widgets-grid">
               <LocationWidget {...geoData} lat={lat} lon={lon} />
               <WeatherWidget
                 {...weatherData}
                 error={weatherError}
                 loading={weatherLoading}
-                onRetry={() => window._loadWeather(latRef.current, lonRef.current)}
+                onRetry={() => window._raymaxLoadWeather(latRef.current, lonRef.current)}
               />
               <SunPositionWidget el={sunEl} az={sunAz} zenith={90-sunEl} />
               <PanelStatusWidget efficiency={efficiency} panelTilt={panelTilt} panelAzimuth={panelAzimuth} />
@@ -886,13 +1524,30 @@ function App() {
               <PanelVoltageWidget voltage={panelVoltage} power={power} efficiency={efficiency} />
               <EnvironmentWidget uv={uv} uvDescription={uvDesc(uv)+" — "+(uv>=6?"Use protection!":"Safe levels")} cloud={cloudCover} humid={humid} pressure={pressure} />
               <DailyEnergyWidget dailyWh={dailyWh} />
+              {/* LDR quad-grid (live from ESP32) */}
+              <LDRWidget data={esp32Data} />
+              {/* Serial monitor — last 20 ESP32 JSON frames */}
+              <SerialMonitor
+                log={serialLog}
+                onClear={() => { serialLogRef.current = []; setSerialLog([]); }}
+              />
             </div>
           </div>
+
+          {/* Historical charts — last 60 readings via HistoryBuffer */}
+          <HistoryCharts tick={historyTick} />
         </main>
       </div>
 
       {/* Toast notifications */}
       <ToastContainer toasts={toasts} />
+
+      {/* Profile Portal Overlay */}
+      <ProfileModal 
+        isOpen={isProfileOpen} 
+        onClose={() => setIsProfileOpen(false)} 
+        currentUser={currentUser} 
+      />
     </>
   );
 }

@@ -1,40 +1,38 @@
 # ☀️ RAYMAX — Solar Tracking System
 
-> **Real-time solar panel tracking with GPS, live weather, 3D visualization, and dual Auto/Manual control modes.**
+> **Real-time solar panel tracking with GPS, live weather, robust authentication, ESP32 WebSocket integration, and 3D visualization running in a seamless glassmorphism React application.**
 
 ![RAYMAX Banner](https://img.shields.io/badge/RAYMAX-Solar%20Tracking%20System-orange?style=for-the-badge&logo=sun&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
-![Babel](https://img.shields.io/badge/Babel-Standalone-F9DC3E?style=flat-square&logo=babel)
+![Firebase](https://img.shields.io/badge/Firebase-Auth/Firestore-FFCA28?style=flat-square&logo=firebase)
+![ESP32](https://img.shields.io/badge/Hardware-ESP32%20WebSocket-222?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 ---
 
 ## 📖 Overview
 
-**RAYMAX** is a browser-based solar panel tracking and monitoring application. It calculates real-time sun position using astronomical algorithms (NOAA simplified model), fetches live weather data, and displays everything in a sleek glassmorphism-styled dashboard — all without any build step or backend.
+**RAYMAX** is a browser-based, full-stack solar panel tracking and monitoring platform. It calculates real-time sun position using astronomical algorithms (NOAA model), fetches live weather data, connects to ESP32 hardware via WebSockets for live data and servo control, and secures user data using a robust dual-method Firebase authentication system. 
 
-The app supports:
-- 🤖 **Auto Mode** — Panel continuously aligns to the optimal sun position using your real GPS location and current time
-- 🎛 **Manual Mode** — Override tilt (X-axis) and azimuth (Y-axis) via interactive sliders
+It is designed with a premium, responsive glassmorphism UI, operating entirely via CDN-loaded React and Babel without requiring a local Node.js build step.
 
 ---
 
-## ✨ Features
+## ✨ Key Features & Recent Updates
 
 | Feature | Description |
 |---|---|
-| 🌍 **GPS Location** | Live geolocation with reverse geocoding (Nominatim / OpenStreetMap) |
-| ☀️ **Sun Tracking** | NOAA-based solar position algorithm (elevation + azimuth) |
-| 🌤 **Live Weather** | Temperature, humidity, wind speed, UV index via Open-Meteo API (no API key) |
-| 🔆 **3D Solar Panel** | Interactive CSS 3D panel that mirrors real-time tilt and azimuth |
-| 🧭 **Sky Map** | SVG sun-path compass showing sun arc across the day |
-| ⚡ **Power Output** | Estimated watt output based on panel alignment and cloud cover |
-| 🔋 **Daily Energy** | Accumulated energy (Wh) with progress ring, persisted via `localStorage` |
-| ⚡ **Panel Voltage** | Simulated voltage mirroring Arduino sensor formula: `V = sensor × (5.0/1023.0) × 3` |
-| 🌅 **Daylight Bar** | Sunrise / sunset times with animated progress bar |
-| 🌡 **Environment** | Cloud cover, humidity, and atmospheric pressure bars |
-| 🌙 **Dark / Light Mode** | Toggle between premium dark and light themes |
-| 🔔 **Toast Notifications** | Non-intrusive status toasts for all live events |
+| 🔐 **Dual Authentication** | Secure Login/Signup portal supporting both **Firebase Email/Password Auth** and **Custom Mobile/Password Auth** (stored securely in distinct Firestore collections). |
+| 🛡️ **Intelligent Auth Guard** | Real-time session validation against Firestore ensures zero unauthenticated access to the live dashboard. |
+| 👤 **Profile Portal** | Glassmorphism modal interface allowing users to link Email and Mobile accounts dynamically and securely update passwords. |
+| 🔌 **ESP32 WebSocket Sync** | Bi-directional real-time communication. Send Auto/Manual tracking commands to specific IPs and receive live LDR, voltage, and temperature telemetry. |
+| 📈 **Historical Data Charts** | Live-updating `Chart.js` graphs displaying Power Output, Voltage, and Temperature over a 60-read history buffer. |
+| 📡 **Live Serial Monitor** | Real-time payload inspector for debugging active data frames originating from the ESP32 hardware. |
+| 🌍 **GPS & Weather** | Live geolocation (OpenStreetMap) combined with real-time solar weather (Open-Meteo) metrics (UV, Cloud Cover). |
+| 🌅 **Sun Tracking & SVG Map** | Real-time Sun Elevation & Azimuth algorithms rendered on a dynamic SVG sky map compass. |
+| 🔆 **Interactive 3D Panel** | CSS 3D solar panel that physically mirrors live orientation commands. |
+| 🔔 **Alert System Core** | Collapsible, dismissible top-bar Alert Ribbon and global Toast Notifications for deep physical system observability. |
+| 🌙 **Dynamic Theming** | Persistent (localStorage) Light/Dark mode toggles that re-render the entire glass physics engine. |
 
 ---
 
@@ -43,100 +41,75 @@ The app supports:
 ```
 RAYMAX/
 │
-├── index.html      # App shell — loads React 18, ReactDOM, Babel CDN & mounts <div id="root">
-├── App.jsx         # React application — all UI components & state logic (JSX, transpiled in-browser)
-├── script.js       # Pure utility functions — sun algorithms, power calc, weather & geocode fetchers
-├── style.css       # Full CSS design system — glassmorphism, dark mode, animations, widgets
-└── README.md       # You are here
+├── index.html           # Main App shell (React 18, Babel CDN, Firebase SDK)
+├── App.jsx              # Core React UI (Dashboards, Charts, Hardware Sync, Modals)
+├── script.js            # Pure logic utilities (Sun algorithms, Data parsing)
+├── style.css            # Live Dashboard Design System (Glassmorphism, Animations)
+├── logo.png             # Official Project Branding
+│
+├── auth/                # Dedicated Authentication Gateway
+│   ├── index.html       # Auth Portal Shell
+│   ├── auth.jsx         # Login/Signup routing, Dual-Auth logic
+│   └── auth.css         # Minimalist fluid gradients & layout for Auth Views
+│
+└── README.md            # You are here
 ```
 
 ---
 
 ## 🚀 Getting Started
 
-### No build step needed!
+### Zero Build Step Execution
 
-Simply open `index.html` in any modern browser:
+Simply launch a local web server to serve the static files.
 
 ```bash
-# Option 1: Direct open
-Double-click index.html
-
-# Option 2: Local dev server (recommended to avoid CORS issues)
+# Recommended: Local dev server (Prevents CORS / Geolocation issues)
 npx serve .
-# or
+
+# Alternatively with Python
 python -m http.server 8080
 ```
 
-> ⚠️ **GPS & Weather** require the page to be served over `localhost` or `https://`. Opening directly as a `file://` URL may block the Geolocation API in some browsers.
+> ⚠️ **Requirements:**
+> 1. **Firebase**: Ensure your `firebaseConfig` object inside `index.html` and `auth/index.html` is populated with active credentials.
+> 2. **Hardware**: To view live Arduino data, ensure your ESP32 is running the Raymax WebSocket Server firmware and is on the same local network.
 
 ---
 
-## 🛠 Tech Stack
+## 🛠 Tech Stack & Integrations
 
-| Technology | Purpose |
-|---|---|
-| **React 18** (CDN) | UI component tree & state management |
-| **Babel Standalone** (CDN) | In-browser JSX transpilation (no build step) |
-| **Vanilla CSS** | Full design system with CSS variables, glassmorphism & animations |
-| **Open-Meteo API** | Free weather data — no API key required |
-| **Nominatim (OSM)** | Free reverse geocoding — no API key required |
-| **NOAA Solar Model** | Astronomical sun position calculation (pure JS) |
-| **localStorage** | Daily energy (Wh) persistence across page refreshes |
+- **Frontend Core**: React 18, Babel Standalone
+- **Design Core**: Pure CSS Variables, Glassmorphism, CSS 3D Transforms
+- **Backend & Database**: Firebase Authentication, Cloud Firestore
+- **Hardware Comms**: Native JavaScript WebSockets (`ws://`)
+- **Visualizations**: Chart.js (CDN)
+- **External APIs**: Open-Meteo (Weather), Nominatim (Reverse Geocoding)
 
 ---
 
-## 📡 APIs Used
-
-| API | Endpoint | Auth |
-|---|---|---|
-| [Open-Meteo](https://open-meteo.com) | `api.open-meteo.com/v1/forecast` | ✅ Free, no key |
-| [Nominatim](https://nominatim.org) | `nominatim.openstreetmap.org/reverse` | ✅ Free, no key |
-| Browser Geolocation API | `navigator.geolocation.watchPosition` | User permission |
-
----
-
-## ⚙️ Solar Algorithms
+## ⚙️ Solar & Hardware Algorithms
 
 ### Sun Position (`calcSunPos`)
-Uses the **NOAA simplified solar position model** to calculate:
-- **Elevation** — angle of sun above horizon (°)
-- **Azimuth** — compass direction of sun (°)
+Uses the **NOAA simplified solar position model** to calculate dynamic Elevation and Azimuth mapping based on device GPS boundaries.
 
-### Power Output (`calcPower`)
+### Arduino Sensor Mirroring Formula
+When hardware is disconnected, RAYMAX mathematically simulates expected voltage output:
 ```
-P = 400W × cos(incidence angle) × (1 − cloudCover / 200)
+P (Watts) = 400W × cos(incidence angle) × (1 − cloudCover / 200)
+Voltage = simulated_sensor × (5.0 / 1023.0) × 3
 ```
 
-### Panel Voltage (Arduino Mirror Formula)
-```
-voltage = sensor × (5.0 / 1023.0) × 3
-```
-Where `sensor` is the simulated Arduino `analogRead(A0)` value (0–1023), derived from the current power output.
+When connected to ESP32:
+The dashboard overrides mathematical estimations by injecting raw `JSON` telemetry directly into the React state and Chart buffers.
 
 ---
 
-## 📊 Dashboard Widgets
+## 🎨 Design System
 
-- 📍 **My Location** — GPS place name with scrolling marquee
-- 🌤 **Weather** — Live conditions from Open-Meteo
-- ☀️ **Sun Position** — Real-time elevation + azimuth
-- 🔆 **Panel Status** — Alignment efficiency %
-- 🌅 **Daylight** — Sunrise/sunset + progress bar
-- ⚡ **Power Output** — Estimated watt generation
-- 🌡 **Environment** — Cloud, humidity, pressure
-- 🔋 **Daily Energy** — Ring chart progress toward 1000 Wh goal
-- ⚡ **Panel Voltage** — Voltage with Arduino-mirrored sensor value
-
----
-
-## 🎨 Design
-
-- **Glassmorphism** cards with backdrop blur
-- **CSS custom properties** for full dark/light theming
-- **Inter** font (Google Fonts)
-- Smooth **micro-animations** and hover transitions
-- Responsive **grid layout**
+- **Extreme Glassmorphism**: Relies heavily on `backdrop-filter: blur(28px) saturate(180%)` layered over fluid CSS organic blob animations.
+- **Premium Typographics**: `Inter` system stack.
+- **Micro-interactions**: Smooth scale-ups, color-fading gradients mapping user login methods, and reactive hover physics.
 
 ---
 

@@ -51,7 +51,7 @@
 }
 
 html {
-  scroll-behavior: smooth
+  scroll-behavior: auto
 }
 
 body {
@@ -61,7 +61,7 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   transition: background .4s cubic-bezier(.4, 0, .2, 1), color .4s cubic-bezier(.4, 0, .2, 1);
-  padding-top: 68px
+  padding-top: 108px  /* 68px navbar + ~40px alert bar */
 }
 
 /* ── MARQUEE ── */
@@ -243,22 +243,23 @@ body {
   left: 0;
   right: 0;
   width: 100%;
+  height: 68px;
   z-index: 100;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 28px;
+  padding: 0 28px;
   background: rgba(240, 242, 248, 0.88);
   backdrop-filter: blur(var(--blur)) saturate(200%);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(200%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.09);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   animation: slideDown .6s ease both
 }
 
 [data-theme="dark"] .navbar {
   background: rgba(10, 10, 15, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.8), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%)
@@ -285,13 +286,19 @@ body {
 .logo-icon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff9f0a, #ff6b00);
+  border-radius: 10px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
-  box-shadow: 0 4px 16px rgba(255, 159, 10, .35)
+  overflow: hidden
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block
 }
 
 .logo-text .lt {
@@ -308,8 +315,13 @@ body {
   margin-top: 1px
 }
 
+/* nav-center is absolutely placed so extra right-side buttons never push it off-center */
 .nav-center {
-  text-align: center
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none    /* clicks fall through to underlying elements */
 }
 
 .live-clock {
@@ -567,7 +579,7 @@ main {
 .s-pivot {
   position: absolute;
   left: 140px;
-  bottom: 120px;
+  bottom: 135px;           /* raised from 120px → creates ~15px gap between panel and pole top */
   width: 0;
   height: 0;
   transform-style: preserve-3d;
@@ -1025,6 +1037,7 @@ main {
 
 input[type=range] {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 6px;
   border-radius: 3px;
@@ -1120,6 +1133,8 @@ input[type=range]::-webkit-slider-thumb:hover {
   animation: fadeUp .5s ease both;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;   /* equal-height: push sub-content to bottom */
+  min-height: 200px;                /* all widgets same minimum height */
   overflow: hidden;
 }
 
@@ -1189,6 +1204,10 @@ input[type=range]::-webkit-slider-thumb:hover {
   background: rgba(18, 18, 24, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
+
+/* LDR + Serial Monitor span 2 columns each */
+.widget.ldr-widget    { grid-column: span 2; }
+.widget.serial-widget { grid-column: span 2; min-height: auto; }
 
 .w-icon {
   font-size: 1.5rem;
@@ -1529,4 +1548,656 @@ input[type=range]::-webkit-slider-thumb:hover {
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.35);
   box-shadow: 0 0 10px rgba(10, 132, 255, 0.3)
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION A — ALERT BAR
+   .alert-bar   sticky ribbon just below the navbar
+   .alert-pill  individual badge per alert
+═══════════════════════════════════════════════════════════════ */
+
+.alert-bar {
+  /* Fixed — flush under navbar, matches exactly */
+  position: fixed;
+  top: 68px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 90;
+  padding: 6px 28px;
+  margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  animation: slideDown .5s .1s ease both;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  min-height: 40px;
+  transition: min-height .3s ease, padding .3s ease
+}
+
+/* Collapsed state — only the toggle chevron shows */
+.alert-bar--collapsed {
+  padding: 4px 28px;
+  min-height: 28px
+}
+
+/* hide completely when no pills are inside */
+.alert-bar:empty {
+  display: none
+}
+
+[data-theme="dark"] .alert-bar {
+  background: rgba(10, 10, 15, 0.80);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06)
+}
+
+/* ── Collapse / expand chevron button ── */
+.alert-toggle {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--t3);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-m);
+  background: var(--surface);
+  transition: all .2s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap
+}
+
+.alert-toggle:hover {
+  background: var(--surface-h);
+  color: var(--t1);
+  transform: scale(1.04)
+}
+
+[data-theme="dark"] .alert-toggle {
+  border-color: rgba(255,255,255,.15);
+  color: var(--t3)
+}
+
+/* ── individual alert badge ── */
+.alert-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  font-size: .78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: opacity .2s ease, transform .2s ease
+}
+
+/* severity colour variants */
+.alert-pill.ok {
+  background: rgba(52, 199, 89, 0.15);
+  border-color: rgba(52, 199, 89, 0.40);
+  color: var(--green)
+}
+
+.alert-pill.warn {
+  background: rgba(255, 159, 10, 0.15);
+  border-color: rgba(255, 159, 10, 0.40);
+  color: var(--gold)
+}
+
+.alert-pill.danger {
+  background: rgba(255, 59, 48, 0.15);
+  border-color: rgba(255, 59, 48, 0.40);
+  color: var(--red)
+}
+
+.alert-pill.info {
+  background: rgba(0, 122, 255, 0.15);
+  border-color: rgba(0, 122, 255, 0.40);
+  color: var(--accent)
+}
+
+/* dismiss × button inside a pill */
+.alert-dismiss {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  margin-left: 6px;
+  opacity: .6;
+  font-size: .85rem;
+  line-height: 1;
+  padding: 0;
+  transition: opacity .15s ease
+}
+
+.alert-dismiss:hover {
+  opacity: 1
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION B — WEBSOCKET PANEL
+   .ws-panel    top-level container (mirrors .control-card glass)
+   .ws-ip-input input for the ESP32 IP address
+   .ws-connect-btn  connect / disconnect toggle
+   .ws-status-dot   animated connection indicator
+   .ws-info-text    small mono status label
+═══════════════════════════════════════════════════════════════ */
+
+.ws-panel {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.80);
+  border-radius: var(--r-card);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 16px 24px;                 /* more compact than original 24px */
+  transition: box-shadow .3s ease;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px
+}
+
+[data-theme="dark"] .ws-panel {
+  background: rgba(18, 18, 24, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%)
+}
+
+/* IP address text field */
+.ws-ip-input {
+  height: 42px;
+  padding: 0 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-m);
+  background: var(--bg);
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .85rem;
+  color: var(--t1);
+  outline: none;
+  width: 200px;
+  transition: border-color .2s ease, box-shadow .2s ease
+}
+
+.ws-ip-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15)
+}
+
+/* connect / disconnect toggle button */
+.ws-connect-btn {
+  height: 42px;
+  padding: 0 22px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(135deg, #34c759, #30d158);
+  color: #fff;
+  font-weight: 700;
+  font-size: .85rem;
+  border: none;
+  cursor: pointer;
+  transition: transform .2s ease, box-shadow .2s ease
+}
+
+.ws-connect-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(52, 199, 89, 0.40)
+}
+
+/* disconnected state — button turns red */
+.ws-connect-btn.disconnected {
+  background: linear-gradient(135deg, #ff3b30, #ff453a)
+}
+
+.ws-connect-btn.disconnected:hover {
+  box-shadow: 0 4px 16px rgba(255, 59, 48, 0.40)
+}
+
+/* animated status dot */
+.ws-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0
+}
+
+.ws-status-dot.connected {
+  background: var(--green);
+  animation: pulse-dot 1.5s ease-in-out infinite   /* reuses .live-dot keyframe */
+}
+
+.ws-status-dot.disconnected {
+  background: var(--red);
+  animation: none
+}
+
+.ws-status-dot.reconnecting {
+  background: var(--gold);
+  animation: pulse-dot .7s ease-in-out infinite
+}
+
+/* small mono status label */
+.ws-info-text {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .75rem;
+  color: var(--t3)
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION C — LDR WIDGET ADDITIONS
+   .ldr-grid    2×2 compass grid of sensor readings
+   .ldr-item    individual cell
+   .ldr-label   tiny uppercase caption
+   .ldr-value   numeric reading
+   .ldr-bar     mini progress bar track
+   .ldr-bar-fill animated fill
+═══════════════════════════════════════════════════════════════ */
+
+.ldr-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px
+}
+
+.ldr-item {
+  background: var(--bg);
+  border: 1px solid var(--border-m);
+  border-radius: 12px;
+  padding: 8px 12px
+}
+
+.ldr-label {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--t3)
+}
+
+.ldr-value {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--t1);
+  margin: 4px 0
+}
+
+.ldr-bar {
+  height: 5px;
+  background: var(--border-m);
+  border-radius: 3px;
+  overflow: hidden
+}
+
+.ldr-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #ff9f0a, #ff6b00);
+  transition: width .5s ease
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION D — SERIAL MONITOR
+   .serial-monitor   always-dark terminal pane
+   .serial-line      one log line (green mono text)
+   .serial-time      dim timestamp prefix
+   .serial-clear-btn ghost clear button
+═══════════════════════════════════════════════════════════════ */
+
+.serial-monitor {
+  background: #0a0a0f;                 /* fixed dark regardless of theme */
+  border: 1px solid rgba(48, 209, 88, 0.20);
+  border-radius: 16px;
+  padding: 14px;
+  height: 180px;
+  overflow-y: auto;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .7rem
+}
+
+/* custom narrow scrollbar — green tinted */
+.serial-monitor::-webkit-scrollbar {
+  width: 4px
+}
+
+.serial-monitor::-webkit-scrollbar-track {
+  background: transparent
+}
+
+.serial-monitor::-webkit-scrollbar-thumb {
+  background: rgba(48, 209, 88, 0.40);
+  border-radius: 2px
+}
+
+.serial-monitor::-webkit-scrollbar-thumb:hover {
+  background: rgba(48, 209, 88, 0.65)
+}
+
+/* individual log line */
+.serial-line {
+  color: #30d158;
+  display: block;
+  margin-bottom: 3px;
+  word-break: break-all
+}
+
+/* dim timestamp prefix on each line */
+.serial-time {
+  color: rgba(48, 209, 88, 0.50);
+  margin-right: 8px
+}
+
+/* ghost "Clear" button below the monitor */
+.serial-clear-btn {
+  display: block;
+  margin-top: 8px;
+  padding: 4px 14px;
+  border-radius: var(--r-pill);
+  background: rgba(48, 209, 88, 0.10);
+  border: 1px solid rgba(48, 209, 88, 0.25);
+  color: #30d158;
+  font-size: .7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s ease, box-shadow .2s ease
+}
+
+.serial-clear-btn:hover {
+  background: rgba(48, 209, 88, 0.20);
+  box-shadow: 0 0 12px rgba(48, 209, 88, 0.25)
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION E — HISTORICAL CHARTS
+   .chart-section       wrapper with fadeUp entrance
+   .chart-section-title matches .section-title
+   .charts-grid         3-column responsive grid
+   .chart-card          glassmorphism card (mirrors .glass-card)
+   .chart-card-label    matches .card-label
+   .chart-canvas-wrap   fixed-height canvas host
+═══════════════════════════════════════════════════════════════ */
+
+.chart-section {
+  margin-top: 24px;
+  animation: fadeUp .7s .4s ease both   /* reuses existing fadeUp keyframe */
+}
+
+/* ── section heading — mirrors .section-title exactly ── */
+.chart-section-title {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 18px
+}
+
+/* ── responsive 3-up grid ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px
+}
+
+@media (max-width: 900px) {
+  .charts-grid {
+    grid-template-columns: 1fr
+  }
+}
+
+/* ── each chart card — full .glass-card clone + extra padding ── */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  backdrop-filter: blur(var(--blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+  box-shadow: var(--sh-s), inset 0 1px 0 rgba(255, 255, 255, .6);
+  padding: 20px;
+  min-height: 220px;                  /* equal heights across all 3 chart cards */
+  transition: box-shadow .3s ease
+}
+
+.chart-card:hover {
+  box-shadow: var(--sh-m), inset 0 1px 0 rgba(255, 255, 255, .7)
+}
+
+[data-theme="dark"] .chart-card {
+  background: rgba(18, 18, 24, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%)
+}
+
+[data-theme="dark"] .chart-card:hover {
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 40px rgba(10, 132, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2)
+}
+
+/* ── chart label — mirrors .card-label exactly ── */
+.chart-card-label {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px
+}
+
+/* ── canvas wrapper with fixed height for Chart.js ── */
+.chart-canvas-wrap {
+  position: relative;
+  height: 160px
+}
+
+/* ──────────────────────────────────────────
+   PROFILE OVERLAY PORTAL
+   ────────────────────────────────────────── */
+.glass-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: fadeInOverlay .3s cubic-bezier(.16,1,.3,1) forwards;
+}
+
+[data-theme="dark"] .glass-overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.profile-modal {
+  width: 90%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: var(--sh-l);
+  padding: 32px 32px 40px;
+  position: relative;
+  transform: scale(0.95) translateY(10px);
+  opacity: 0;
+  animation: scaleUpModal .4s cubic-bezier(.16,1,.3,1) forwards;
+}
+
+@keyframes fadeInOverlay { to { opacity: 1; } }
+@keyframes scaleUpModal { to { opacity: 1; transform: scale(1) translateY(0); } }
+
+.pm-close {
+  position: absolute;
+  top: 18px; right: 18px;
+  width: 32px; height: 32px;
+  border-radius: 16px;
+  background: rgba(120, 120, 128, 0.1);
+  border: none;
+  font-size: 1rem;
+  color: var(--t2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.pm-close:hover { background: rgba(120, 120, 128, 0.2); color: var(--t1); }
+
+.pm-header { text-align: center; margin-bottom: 24px; }
+.pm-avatar {
+  width: 80px; height: 80px;
+  border-radius: 40px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, #007aff, #5e5ce6);
+  color: #fff;
+  font-size: 2rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3);
+}
+.pm-avatar-edit {
+  position: absolute;
+  bottom: 0px; right: 0px;
+  width: 28px; height: 28px;
+  background: var(--bg);
+  border-radius: 14px;
+  border: 2px solid var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.pm-header h2 { font-size: 1.35rem; font-weight: 700; color: var(--t1); margin-bottom: 4px; }
+.pm-header p { font-size: 0.9rem; color: var(--t3); }
+
+.pm-section {
+  background: rgba(120, 120, 128, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-m);
+}
+.pm-section h3 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--t2);
+  margin-bottom: 16px;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pm-input-wrap {
+  position: relative;
+  background: var(--bg);
+  border-radius: 14px;
+  border: 1px solid var(--border-m);
+  transition: all 0.3s;
+  margin-bottom: 12px;
+}
+.pm-input-wrap:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+.pm-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 14px 16px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--t1);
+  outline: none;
+}
+.pm-input::placeholder { color: var(--t3); }
+
+.pm-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff9f0a, #ff6b00);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(255, 159, 10, 0.3);
+  transition: all 0.3s;
+}
+.pm-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(255, 159, 10, 0.4);
+}
+.pm-btn:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
+.pm-btn-sec {
+  background: transparent;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--accent);
+  background: rgba(0, 122, 255, 0.08); /* blue tint */
+  transition: all 0.3s;
+}
+.pm-btn-sec:hover { background: rgba(0, 122, 255, 0.15); }
+
+.pm-msg-error {
+  color: var(--red);
+  background: rgba(255, 59, 48, 0.1);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+.pm-msg-success {
+  color: var(--green);
+  background: rgba(52, 199, 89, 0.1);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
 }

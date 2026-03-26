@@ -103,16 +103,34 @@ function sunToXY(az, el) {
 function buildSunPathD(sunrise, sunset, lat, lon) {
   if (!sunrise || !sunset) return "";
   const pts = [];
-  const step = 20 * 60 * 1000;
+  const step = 10 * 60 * 1000;   // 10-min intervals for good density
   for (let t = sunrise.getTime() - step; t <= sunset.getTime() + step; t += step) {
-    const d = new Date(t);
-    const sp = calcSunPos(d, lat, lon);
+    const sp = calcSunPos(new Date(t), lat, lon);
     if (sp.el < -5) continue;
     const p = sunToXY(sp.az, sp.el);
-    pts.push(`${p.x.toFixed(1)},${p.y.toFixed(1)}`);
+    pts.push(p);
   }
-  return pts.length > 1 ? "M" + pts.join("L") : "";
+  if (pts.length < 2) return "";
+
+  // Build a smooth cubic-bezier SVG path (Catmull-Rom → cubic bezier)
+  // This produces a soft, continuous arc with no kinks
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    // Catmull-Rom to cubic bezier control points (tension 0.4)
+    const t = 0.4;
+    const cp1x = p1.x + (p2.x - p0.x) * t / 2;
+    const cp1y = p1.y + (p2.y - p0.y) * t / 2;
+    const cp2x = p2.x - (p3.x - p1.x) * t / 2;
+    const cp2y = p2.y - (p3.y - p1.y) * t / 2;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2.x.toFixed(1)},${p2.y.toFixed(1)}`;
+  }
+  return d;
 }
+
 
 // Async data fetchers
 async function fetchWeather(lat, lon) {
@@ -144,3 +162,296 @@ async function fetchGeocode(lat, lon) {
   const data = await r.json();
   return data.address || {};
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 1 — WEBSOCKET MANAGER
+   Class : RaymaxWS
+   Usage : const ws = new RaymaxWS("192.168.1.100");
+           ws.connect();
+           ws.onData(json => console.log(json));
+           ws.sendCommand(30, 180);
+═══════════════════════════════════════════════════════════════ */
+class RaymaxWS {
+  /**
+   * @param {string} ip   - IP address of the ESP32
+   * @param {number} port - WebSocket port (default 81)
+   */
+  constructor(ip, port = 81) {
+    this._ip         = ip;
+    this._port       = port;
+    this._socket     = null;
+    this._dataCallback   = null;   // set via onData()
+    this._statusCallback = null;   // set via onStatusChange()
+    this._reconnectTimer = null;
+    this._intentionalClose = false;
+  }
+
+  // ── PUBLIC API ────────────────────────────────────────────
+
+  /** Open a connection to ws://ip:port */
+  connect() {
+    this._intentionalClose = false;
+    this._openSocket();
+  }
+
+  /** Cleanly close the socket (no auto-reconnect after this) */
+  disconnect() {
+    this._intentionalClose = true;
+    this._clearReconnect();
+    if (this._socket) {
+      this._socket.close();
+      this._socket = null;
+    }
+  }
+
+  /** Returns true if the socket is currently open */
+  isConnected() {
+    return !!(this._socket && this._socket.readyState === WebSocket.OPEN);
+  }
+
+  /**
+   * Send a move command to the ESP32.
+   * @param {number} tilt     - Panel tilt angle  (degrees)
+   * @param {number} azimuth  - Panel azimuth angle (degrees)
+   */
+  sendCommand(tilt, azimuth) {
+    if (!this.isConnected()) {
+      console.warn("[RaymaxWS] Cannot send — not connected.");
+      return;
+    }
+    const payload = JSON.stringify({ cmd: "move", tilt, azimuth });
+    this._socket.send(payload);
+  }
+
+  /**
+   * Register a callback that fires whenever a JSON message
+   * arrives from the ESP32.
+   * @param {function} callback - receives a parsed JSON object
+   */
+  onData(callback) {
+    this._dataCallback = callback;
+  }
+
+  /**
+   * Register a callback that fires on connection-state changes.
+   * @param {function} callback - receives "connected" | "disconnected" | "reconnecting"
+   */
+  onStatusChange(callback) {
+    this._statusCallback = callback;
+  }
+
+  // ── PRIVATE HELPERS ────────────────────────────────────────
+
+  _openSocket() {
+    const url = `ws://${this._ip}:${this._port}`;
+    try {
+      this._socket = new WebSocket(url);
+    } catch (e) {
+      console.error("[RaymaxWS] WebSocket construction failed:", e);
+      this._scheduleReconnect();
+      return;
+    }
+
+    this._socket.onopen = () => {
+      console.log(`[RaymaxWS] Connected to ${url}`);
+      this._clearReconnect();
+      this._emitStatus("connected");
+    };
+
+    this._socket.onmessage = (event) => {
+      try {
+        const json = JSON.parse(event.data);
+        if (this._dataCallback) this._dataCallback(json);
+      } catch (e) {
+        console.warn("[RaymaxWS] Non-JSON message ignored:", event.data);
+      }
+    };
+
+    this._socket.onerror = (err) => {
+      console.warn("[RaymaxWS] Socket error:", err);
+      // onclose will fire next and handle reconnect
+    };
+
+    this._socket.onclose = () => {
+      console.log("[RaymaxWS] Socket closed.");
+      this._socket = null;
+      if (!this._intentionalClose) {
+        this._emitStatus("disconnected");
+        this._scheduleReconnect();
+      }
+    };
+  }
+
+  _scheduleReconnect() {
+    if (this._reconnectTimer) return; // already scheduled
+    this._emitStatus("reconnecting");
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      if (!this._intentionalClose) {
+        console.log("[RaymaxWS] Attempting reconnect…");
+        this._openSocket();
+      }
+    }, 3000); // retry every 3 seconds
+  }
+
+  _clearReconnect() {
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+  }
+
+  _emitStatus(status) {
+    if (this._statusCallback) this._statusCallback(status);
+  }
+}
+
+// Expose globally so App.jsx / inline scripts can use it
+window.RaymaxWS = RaymaxWS;
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 2 — ALERT LOGIC
+   Function : checkAlerts(data)
+   Usage    : const alerts = checkAlerts({ voltage, temperature,
+                ldr_top, ldr_bottom, ldr_left, ldr_right, power });
+   Returns  : Array of { type, icon, msg } objects
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Evaluate incoming ESP32 sensor data and generate user-facing alerts.
+ *
+ * @param {Object} data
+ * @param {number} data.voltage       - Panel voltage (V)
+ * @param {number} data.temperature   - Panel temperature (°C)
+ * @param {number} data.ldr_top       - LDR reading — top sensor
+ * @param {number} data.ldr_bottom    - LDR reading — bottom sensor
+ * @param {number} data.ldr_left      - LDR reading — left sensor
+ * @param {number} data.ldr_right     - LDR reading — right sensor
+ * @param {number} data.power         - Current power output (W)
+ *
+ * @returns {Array<{type:string, icon:string, msg:string}>}
+ */
+function checkAlerts(data) {
+  const { voltage, temperature, ldr_top, ldr_bottom, ldr_left, ldr_right } = data;
+  const alerts = [];
+
+  // ── Voltage checks ─────────────────────────────────────────
+  if (voltage < 10) {
+    alerts.push({
+      type: "warn",
+      icon: "⚡",
+      msg:  "Low voltage: " + voltage.toFixed(1) + "V"
+    });
+  } else if (voltage > 15) {
+    alerts.push({
+      type: "danger",
+      icon: "🔴",
+      msg:  "Overvoltage! " + voltage.toFixed(1) + "V"
+    });
+  }
+
+  // ── Temperature checks ─────────────────────────────────────
+  // Order matters: check the higher threshold first so only one
+  // temperature alert fires per reading.
+  if (temperature > 60) {
+    alerts.push({
+      type: "danger",
+      icon: "🌡",
+      msg:  "Panel overheating: " + temperature + "°C"
+    });
+  } else if (temperature > 45) {
+    alerts.push({
+      type: "warn",
+      icon: "🌡",
+      msg:  "High temp: " + temperature + "°C"
+    });
+  }
+
+  // ── LDR difference checks ───────────────────────────────────
+  if (Math.abs(ldr_top - ldr_bottom) > 200) {
+    alerts.push({
+      type: "info",
+      icon: "☀️",
+      msg:  "Large vertical sun angle difference"
+    });
+  }
+
+  if (Math.abs(ldr_left - ldr_right) > 200) {
+    alerts.push({
+      type: "info",
+      icon: "🧭",
+      msg:  "Large horizontal sun angle difference"
+    });
+  }
+
+  // ── All-clear fallback ─────────────────────────────────────
+  if (alerts.length === 0) {
+    alerts.push({
+      type: "ok",
+      icon: "✅",
+      msg:  "All systems nominal"
+    });
+  }
+
+  return alerts;
+}
+
+// Expose globally
+window.checkAlerts = checkAlerts;
+
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION 3 — HISTORY BUFFER
+   Object : HistoryBuffer  (circular, max 60 entries)
+   Usage  : window.HistoryBuffer.add({ power, voltage, temperature });
+            const history = window.HistoryBuffer.getAll();
+            window.HistoryBuffer.clear();
+═══════════════════════════════════════════════════════════════ */
+class _HistoryBuffer {
+  constructor() {
+    this.MAX  = 60;
+    this._buf = []; // internal circular store
+  }
+
+  /**
+   * Add a single data-point to the buffer.
+   * A human-readable time string is auto-generated and stored
+   * alongside the supplied fields.
+   *
+   * @param {Object} entry
+   * @param {number} entry.power        - Power output (W)
+   * @param {number} entry.voltage      - Panel voltage (V)
+   * @param {number} entry.temperature  - Panel temperature (°C)
+   */
+  add(entry) {
+    const time = new Date().toLocaleTimeString("en-IN", {
+      hour:   "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const record = { time, ...entry };
+
+    if (this._buf.length >= this.MAX) {
+      // Circular: drop the oldest entry
+      this._buf.shift();
+    }
+    this._buf.push(record);
+  }
+
+  /**
+   * Return a shallow copy of all entries in chronological order.
+   * @returns {Array}
+   */
+  getAll() {
+    return [...this._buf];
+  }
+
+  /** Empty the buffer. */
+  clear() {
+    this._buf = [];
+  }
+}
+
+// Instantiate and expose a singleton globally
+window.HistoryBuffer = new _HistoryBuffer();
