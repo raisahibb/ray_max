@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "ray-max",
+    "raymax": "ray-max"
+  },
+  "targets": {},
+  "etags": {}
+}

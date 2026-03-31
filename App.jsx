@@ -35,69 +35,93 @@ function WChip({ icon, value }) {
 // NAVBAR
 // ──────────────────────────────────────────
 
-function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onProfileClick }) {
+function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onProfileClick, userPhotoURL }) {
+  const navRef = useRef(null);
+
+  // Attach .scrolled class when page is scrolled > 10px
+  useEffect(() => {
+    const onScroll = () => {
+      if (navRef.current) {
+        navRef.current.classList.toggle('scrolled', window.scrollY > 10);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <nav className="navbar">
-      <div className="nav-logo">
-        <div className="logo-icon"><img src="logo.png" alt="RAYMAX logo" /></div>
-        <div className="logo-text">
-          <div className="lt">RAYMAX</div>
-          <div className="ls">Solar Tracking System</div>
-        </div>
-      </div>
-      <div className="nav-center">
-        <div className="live-clock">{clock}</div>
-        <div className="live-date">{date}</div>
-      </div>
-      <div className="nav-right">
-        <div className="loc-pill">📍 <span>{locPill}</span></div>
-
-        {/* User avatar — shows name initial + tooltip */}
-        {currentUser && (
-          <div
-            title={
-              currentUser.loginMethod === 'mobile'
-                ? `${currentUser.displayName} (${currentUser.mobile})`
-                : currentUser.email
-            }
-            onClick={onProfileClick}
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              background: currentUser.loginMethod === 'mobile'
-                ? "linear-gradient(135deg,#34c759,#30d158)"   /* green for mobile */
-                : "linear-gradient(135deg,#ff9f0a,#ff6b00)",  /* orange for email */
-              color: "#fff", fontWeight: 800, fontSize: ".85rem",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0, cursor: "pointer",
-              boxShadow: currentUser.loginMethod === 'mobile'
-                ? "0 2px 8px rgba(52,199,89,.4)"
-                : "0 2px 8px rgba(255,159,10,.4)"
-            }}
-          >
-            {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+    <>
+      {/* ── Main floating pill — Logo | Clock | Controls ── */}
+      <nav className="navbar" ref={navRef}>
+        <div className="nav-logo">
+          <div className="logo-icon"><img src="logo.png" alt="RAYMAX logo" /></div>
+          <div className="logo-text">
+            <div className="lt">RAYMAX</div>
+            <div className="ls">Solar Tracking System</div>
           </div>
-        )}
+        </div>
 
+        {/* Clock: flex:1 center — no absolute, no overlap */}
+        <div className="nav-center">
+          <div className="live-clock">{clock}</div>
+          <div className="live-date">{date}</div>
+        </div>
+
+        {/* Right: avatar + theme + logout only */}
+        <div className="nav-right">
+          {currentUser && (
+            <div
+              title={
+                currentUser.loginMethod === 'mobile'
+                  ? `${currentUser.displayName} (${currentUser.mobile})`
+                  : currentUser.email
+              }
+              onClick={onProfileClick}
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                background: userPhotoURL ? 'transparent'
+                  : currentUser.loginMethod === 'mobile'
+                    ? 'linear-gradient(135deg,#34c759,#30d158)'
+                    : 'linear-gradient(135deg,#ff9f0a,#ff6b00)',
+                color: '#fff', fontWeight: 800, fontSize: '.85rem',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0, cursor: 'pointer', overflow: 'hidden',
+                boxShadow: userPhotoURL
+                  ? '0 2px 8px rgba(0,0,0,.2)'
+                  : currentUser.loginMethod === 'mobile'
+                    ? '0 2px 8px rgba(52,199,89,.4)'
+                    : '0 2px 8px rgba(255,159,10,.4)'
+              }}
+            >
+              {userPhotoURL
+                ? <img src={userPhotoURL} alt="avatar"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : (currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()
+              }
+            </div>
+          )}
+          <button className="icon-btn" id="themeBtn" onClick={onToggleTheme}>
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+          <button
+            className="icon-btn"
+            id="logoutBtn"
+            title="Sign Out"
+            onClick={async () => {
+              localStorage.removeItem('raymax-mobile-user');
+              try { await window.auth.signOut(); } catch (_) {}
+              window.location.href = './auth/index.html';
+            }}
+          >🚪</button>
+        </div>
+      </nav>
+
+      {/* ── Side cluster — LIVE badge on top, Location pill below ── */}
+      <div className="nav-side-cluster">
         <div className="live-badge"><LiveDot />LIVE</div>
-        <button className="icon-btn" id="themeBtn" onClick={onToggleTheme}>
-          {theme === "dark" ? "☀️" : "🌙"}
-        </button>
-
-        {/* Logout button — clears both Firebase session and localStorage mobile session */}
-        <button
-          className="icon-btn"
-          id="logoutBtn"
-          title="Sign Out"
-          onClick={async () => {
-            // 1. Clear custom mobile session
-            localStorage.removeItem('raymax-mobile-user');
-            // 2. Sign out of Firebase (no-op if not signed in via Firebase)
-            try { await window.auth.signOut(); } catch (_) {}
-            window.location.href = './auth/index.html';
-          }}
-        >🚪</button>
+        <div className="loc-pill">📍 <span>{locPill}</span></div>
       </div>
-    </nav>
+    </>
   );
 }
 
@@ -106,7 +130,7 @@ function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onPro
 // ──────────────────────────────────────────
 
 function SolarPanel3D({ panelTilt, panelAzimuth, panelVoltage, efficiency }) {
-  const azOffset = panelAzimuth - 180;
+  const azOffset = panelAzimuth;
   const pivotStyle = {
     transform: `rotateY(${azOffset + 180}deg) rotateX(${panelTilt}deg)`
   };
@@ -187,17 +211,16 @@ function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
           <circle cx="130" cy="130" r="39"  className="c-ring-mid"/>
           <line x1="130" y1="6"   x2="130" y2="254" className="c-cross"/>
           <line x1="6"   y1="130" x2="254" y2="130" className="c-cross"/>
-          <text x="130" y="20"  className="c-lbl" textAnchor="middle">N</text>
-          <text x="130" y="252" className="c-lbl" textAnchor="middle">S</text>
-          <text x="250" y="134" className="c-lbl" textAnchor="middle">E</text>
-          <text x="10"  y="134" className="c-lbl" textAnchor="middle">W</text>
+          <text x="130" y="20"  className="c-lbl" textAnchor="middle">S</text>
+          <text x="130" y="252" className="c-lbl" textAnchor="middle">N</text>
+          <text x="250" y="134" className="c-lbl" textAnchor="middle">W</text>
+          <text x="10"  y="134" className="c-lbl" textAnchor="middle">E</text>
           <text x="130" y="104" className="c-lbl" textAnchor="middle" opacity=".6">60°</text>
           <text x="130" y="65"  className="c-lbl" textAnchor="middle" opacity=".6">30°</text>
-          {/* Sun path clipped to compass circle — no overrun */}
-          {pathD && <path d={pathD} className="sun-path-line" fill="none" clipPath="url(#compassClip)" />}
-          <line x1="130" y1="130" x2={panelPos.x} y2={panelPos.y} className="panel-dir-line"/>
-          <circle cx={sunPos.x} cy={sunPos.y} r="14" className="sun-dot-glow"  filter="url(#sunGlow)"/>
-          <circle cx={sunPos.x} cy={sunPos.y} r="9"  className="sun-dot-inner" filter="url(#sunGlow)"/>
+
+          <line x1="130" y1="130" x2={260 - panelPos.x} y2={260 - panelPos.y} className="panel-dir-line"/>
+          <circle cx={260 - sunPos.x} cy={260 - sunPos.y} r="14" className="sun-dot-glow"  filter="url(#sunGlow)"/>
+          <circle cx={260 - sunPos.x} cy={260 - sunPos.y} r="9"  className="sun-dot-inner" filter="url(#sunGlow)"/>
           <circle cx="130" cy="130" r="3" className="zenith-dot"/>
         </svg>
       </div>
@@ -557,8 +580,8 @@ function PanelVoltageWidget({ voltage, power, efficiency }) {
   const simSensor = Math.round((voltage / (5.0 / 1023.0 * 3)));
   const maxV = 14.96;
   const fillPct = Math.min(100, (voltage / maxV) * 100);
-  const status = voltage < 3 ? 'Off / Night' : voltage < 8 ? 'Low Output' : voltage < 12 ? 'Charging' : 'Optimal';
-  const statusColor = voltage < 3 ? 'var(--t3)' : voltage < 8 ? 'var(--gold)' : voltage < 12 ? 'var(--accent)' : 'var(--green)';
+  const status = voltage < 1 ? 'Off / Night' : voltage < 4 ? 'Low Output' : voltage < 9 ? 'Charging' : 'Optimal';
+  const statusColor = voltage < 1 ? 'var(--t3)' : voltage < 4 ? 'var(--gold)' : voltage < 9 ? 'var(--accent)' : 'var(--green)';
 
   return (
     <div className="widget">
@@ -600,6 +623,9 @@ function ToastContainer({ toasts }) {
 
 // AlertBar — collapsible sticky ribbon below navbar
 function AlertBar({ alerts, open, onToggle, onDismiss }) {
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
   if (!alerts || alerts.length === 0) return null;
   return (
     <div className={`alert-bar${open ? '' : ' alert-bar--collapsed'}`}>
@@ -661,6 +687,7 @@ function WSPanel({ ip, onIpChange, status, onConnect, onDisconnect, lastSeen }) 
         onChange={e => onIpChange(e.target.value)}
         placeholder="192.168.1.100"
         disabled={isConn || isRecon}
+        autoFocus={false}
       />
       <button
         className={`ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`}
@@ -712,7 +739,14 @@ function LDRWidget({ data }) {
 
 function SerialMonitor({ log, onClear }) {
   const endRef = useRef(null);
-  useEffect(() => { endRef.current && endRef.current.scrollIntoView({ behavior:"smooth" }); }, [log]);
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    endRef.current && endRef.current.scrollIntoView({ behavior: "smooth" });
+  }, [log]);
   return (
     <div className="widget serial-widget">
       <div className="w-icon">📡</div>
@@ -737,11 +771,35 @@ function SerialMonitor({ log, onClear }) {
 // HISTORY CHARTS (Chart.js via CDN global)
 // ──────────────────────────────────────────
 
-function HistoryCharts({ tick }) {
-  const powerRef = useRef(null);
-  const voltRef  = useRef(null);
-  const tempRef  = useRef(null);
-  const charts   = useRef({});
+function HistoryCharts({ tick, theme }) {
+  const powerRef   = useRef(null);
+  const voltRef    = useRef(null);
+  const tempRef    = useRef(null);
+  const charts     = useRef({});
+  // Wrapper div refs — ResizeObserver attaches here
+  const powerWrap  = useRef(null);
+  const voltWrap   = useRef(null);
+  const tempWrap   = useRef(null);
+
+  // ── ResizeObserver: fires on ANY size change including browser zoom ──
+  useEffect(() => {
+    const observers = [];
+    const pairs = [
+      { wrap: powerWrap, key: "power" },
+      { wrap: voltWrap,  key: "volt"  },
+      { wrap: tempWrap,  key: "temp"  },
+    ];
+    pairs.forEach(({ wrap, key }) => {
+      if (!wrap.current) return;
+      const ro = new ResizeObserver(() => {
+        const ch = charts.current[key];
+        if (ch) ch.resize();
+      });
+      ro.observe(wrap.current);
+      observers.push(ro);
+    });
+    return () => observers.forEach(ro => ro.disconnect());
+  }, []);
 
   useEffect(() => {
     const history = HistoryBuffer.getAll();
@@ -750,18 +808,33 @@ function HistoryCharts({ tick }) {
     const volts   = history.map(h => h.voltage);
     const temps   = history.map(h => h.temperature);
 
-    const chartConf = (label, data, color, ref, key) => {
-      // Update existing chart in-place to avoid re-animation
+    const isDark    = theme === "dark";
+    const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)";
+    const textColor = isDark ? "rgba(255,255,255,0.7)"  : "#9097b8";
+
+    const makeGradient = (ctx, color) => {
+      const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+      gradient.addColorStop(0,   color.replace("1)", "0.35)"));
+      gradient.addColorStop(0.6, color.replace("1)", "0.08)"));
+      gradient.addColorStop(1,   color.replace("1)", "0.00)"));
+      return gradient;
+    };
+
+    const chartConf = (label, data, color, ref, key, yMin, yMax) => {
       if (charts.current[key]) {
-        charts.current[key].data.labels = labels;
-        charts.current[key].data.datasets[0].data = data;
-        charts.current[key].update("none");
+        const ch = charts.current[key];
+        ch.data.labels = labels;
+        ch.data.datasets[0].data = data;
+        ch.options.scales.x.ticks.color = textColor;
+        ch.options.scales.y.ticks.color = textColor;
+        ch.options.scales.x.grid.color  = gridColor;
+        ch.options.scales.y.grid.color  = gridColor;
+        ch.update("none");
         return;
       }
-      const isDark    = document.documentElement.dataset.theme === "dark";
-      const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)";
-      const textColor = isDark ? "#6b7394" : "#9097b8";
-      charts.current[key] = new Chart(ref.current, {
+      const canvas = ref.current;
+      const ctx    = canvas.getContext("2d");
+      charts.current[key] = new Chart(ctx, {
         type: "line",
         data: {
           labels,
@@ -769,43 +842,66 @@ function HistoryCharts({ tick }) {
             label,
             data,
             borderColor: color,
-            backgroundColor: color.replace("1)", "0.1)"),
-            borderWidth: 2,
+            backgroundColor: makeGradient(ctx, color),
+            borderWidth: 2.5,
             pointRadius: 0,
-            tension: 0.4,
+            pointHoverRadius: 5,
+            pointHoverBackgroundColor: color,
+            tension: 0.45,
             fill: true
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          animation: false,
-          plugins: { legend: { display: false } },
+          animation: { duration: 400, easing: "easeOutQuart" },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? "rgba(14,14,20,0.92)" : "rgba(255,255,255,0.95)",
+              borderColor: color,
+              borderWidth: 1,
+              titleColor: textColor,
+              bodyColor: isDark ? "#ffffff" : "#12131a",
+              padding: 10,
+              cornerRadius: 10
+            }
+          },
           scales: {
-            x: { ticks: { color: textColor, font:{size:10}, maxTicksLimit:6 }, grid: { color: gridColor } },
-            y: { ticks: { color: textColor, font:{size:10} },                  grid: { color: gridColor } }
+            x: {
+              ticks: { color: textColor, font: { size: 10, family: "'Datatype', monospace" }, maxTicksLimit: 6 },
+              grid:  { color: gridColor },
+              border: { display: false }
+            },
+            y: {
+              suggestedMin: yMin,
+              suggestedMax: yMax,
+              ticks: { color: textColor, font: { size: 10, family: "'Datatype', monospace" } },
+              grid:  { color: gridColor },
+              border: { display: false }
+            }
           }
         }
       });
     };
 
-    if (powerRef.current) chartConf("Power (W)",        powers, "rgba(255,159,10,1)", powerRef, "power");
-    if (voltRef.current)  chartConf("Voltage (V)",      volts,  "rgba(0,122,255,1)",  voltRef,  "volt");
-    if (tempRef.current)  chartConf("Temperature (°C)", temps,  "rgba(255,59,48,1)",  tempRef,  "temp");
-  }, [tick]);
+    if (powerRef.current) chartConf("Power (W)",        powers, "rgba(255,159,10,1)", powerRef, "power", 0, 10);
+    if (voltRef.current)  chartConf("Voltage (V)",      volts,  "rgba(0,122,255,1)",  voltRef,  "volt",  0, 6);
+    if (tempRef.current)  chartConf("Temperature (°C)", temps,  "rgba(255,59,48,1)",  tempRef,  "temp",  20, 50);
+  }, [tick, theme]);
 
   return (
     <div className="chart-section">
       <div className="chart-section-title">📈 Historical Data — Last 60 readings</div>
       <div className="charts-grid">
         {[
-          { ref: powerRef, label: "⚡ Power Output (W)" },
-          { ref: voltRef,  label: "🔋 Voltage (V)"      },
-          { ref: tempRef,  label: "🌡 Temperature (°C)" },
+          { ref: powerRef, wrap: powerWrap, label: "⚡ Power Output (W)" },
+          { ref: voltRef,  wrap: voltWrap,  label: "🔋 Voltage (V)"      },
+          { ref: tempRef,  wrap: tempWrap,  label: "🌡 Temperature (°C)" },
         ].map((c, i) => (
           <div key={i} className="chart-card">
             <div className="chart-card-label">{c.label}</div>
-            <div className="chart-canvas-wrap">
+            <div className="chart-canvas-wrap" ref={c.wrap}>
               <canvas ref={c.ref} />
             </div>
           </div>
@@ -819,57 +915,132 @@ function HistoryCharts({ tick }) {
 // PROFILE OVERLAY PORTAL
 // ──────────────────────────────────────────
 function ProfileModal({ isOpen, onClose, currentUser }) {
-  const [linking, setLinking] = useState(false);
-  const [linkInput, setLinkInput] = useState('');
+  const [linking, setLinking]         = useState(false);
+  const [linkInput, setLinkInput]     = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError]             = useState('');
+  const [success, setSuccess]         = useState('');
+  const [photoURL, setPhotoURL]       = useState(null);
+  const [uploading, setUploading]     = useState(false);
+  const fileInputRef                  = useRef(null);
+  const [linkedAccounts, setLinkedAccounts] = useState({ email: null, phone: null });
+  const [showLinkEmail, setShowLinkEmail]   = useState(false);
+  const [showLinkPhone, setShowLinkPhone]   = useState(false);
+
+  // Load photo URL + linked accounts — pre-fill primary immediately, then merge from Firestore
+  useEffect(() => {
+    if (!isOpen || !currentUser) return;
+
+    // Pre-fill primary login method immediately (no Firestore wait)
+    if (currentUser.loginMethod === 'email') {
+      setLinkedAccounts(prev => ({ ...prev, email: currentUser.email }));
+    } else if (currentUser.loginMethod === 'mobile') {
+      setLinkedAccounts(prev => ({ ...prev, phone: currentUser.mobile }));
+    }
+
+    // Then load photo + secondary linked account from Firestore
+    const col = currentUser.loginMethod === 'mobile' ? 'users_mobile' : 'users';
+    window.db.collection(col).doc(currentUser.uid).get().then(doc => {
+      if (doc.exists) {
+        const d = doc.data();
+        if (d.photoURL) setPhotoURL(d.photoURL);
+        setLinkedAccounts({
+          email: currentUser.loginMethod === 'email'
+            ? currentUser.email              // keep primary — never overwrite
+            : (d.email || null),             // secondary linked email
+          phone: currentUser.loginMethod === 'mobile'
+            ? currentUser.mobile             // keep primary — never overwrite
+            : (d.mobile || d.phone || null)  // secondary linked phone
+        });
+      }
+    });
+  }, [isOpen, currentUser]);
 
   if (!isOpen || !currentUser) return null;
 
-  async function handleLinkAccount(e) {
-    e.preventDefault();
-    setError(''); setSuccess('');
-    if (!linkInput) return;
-    setLinking(true);
+  // ── Photo upload — Cloudinary unsigned upload (no SDK, native fetch)
+  async function handlePhotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate size
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image too large. Max 2MB.'); return;
+    }
+    // Validate type
+    if (!file.type.startsWith('image/')) {
+      setError('Only image files allowed.'); return;
+    }
+
+    setUploading(true); setError(''); setSuccess('');
+
     try {
-      if (currentUser.loginMethod === 'mobile') {
-        const docRef = window.db.collection('users_mobile').doc(currentUser.uid);
-        await docRef.update({ email: linkInput });
-      } else {
-        const docRef = window.db.collection('users').doc(currentUser.uid);
-        await docRef.update({ mobile: linkInput });
+      // Build FormData for Cloudinary unsigned upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'raymax_profiles');
+
+      // Upload to Cloudinary REST API — no SDK needed
+      const res = await fetch(
+        'https://api.cloudinary.com/v1_1/dnh5ohncw/image/upload',
+        { method: 'POST', body: formData }
+      );
+
+      if (!res.ok) throw new Error('Upload failed: ' + res.status);
+      const data = await res.json();
+      if (!data.secure_url) throw new Error('No URL returned from Cloudinary');
+
+      // Add cache-bust so browser shows new photo immediately
+      const freshURL = data.secure_url + '?v=' + Date.now();
+
+      // Save canonical URL (without cache-bust) to Firestore
+      const col = currentUser.loginMethod === 'mobile' ? 'users_mobile' : 'users';
+      await window.db.collection(col).doc(currentUser.uid).update({ photoURL: data.secure_url });
+
+      // Update Firebase Auth profile if email user
+      if (window.auth.currentUser) {
+        await window.auth.currentUser.updateProfile({ photoURL: data.secure_url });
       }
-      setSuccess('Account linked successfully.');
-      setLinkInput('');
+
+      // Update modal avatar immediately (cache-busted)
+      setPhotoURL(freshURL);
+
+      // Notify Navbar to update avatar
+      window.dispatchEvent(new CustomEvent('raymax-photo-updated', {
+        detail: { photoURL: freshURL }
+      }));
+
+      setSuccess('Profile photo updated! ✅');
+
     } catch(err) {
-      setError('Failed to link: ' + err.message);
+      setError('Upload failed: ' + err.message);
     } finally {
-      setLinking(false);
+      setUploading(false);
+      e.target.value = '';
     }
   }
 
+  // ── Password update
   async function handleUpdatePassword(e) {
     e.preventDefault();
     setError(''); setSuccess('');
     const { current, newPass, confirm } = passwordForm;
     if (!current || !newPass || !confirm) return;
     if (newPass !== confirm) return setError('Passwords do not match');
-
     setLinking(true);
     try {
       if (currentUser.loginMethod === 'mobile') {
         const docRef = window.db.collection('users_mobile').doc(currentUser.uid);
         const sn = await docRef.get();
-        if(sn.data().password !== current) throw new Error('Incorrect current password');
+        if (sn.data().password !== current) throw new Error('Incorrect current password');
         await docRef.update({ password: newPass });
       } else {
-         const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, current);
-         await window.auth.currentUser.reauthenticateWithCredential(cred);
-         await window.auth.currentUser.updatePassword(newPass);
+        const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, current);
+        await window.auth.currentUser.reauthenticateWithCredential(cred);
+        await window.auth.currentUser.updatePassword(newPass);
       }
-      setSuccess('Password updated successfully.');
-      setPasswordForm({ current:'', newPass:'', confirm:'' });
+      setSuccess('Password updated successfully. ✅');
+      setPasswordForm({ current: '', newPass: '', confirm: '' });
     } catch(err) {
       setError(err.message);
     } finally {
@@ -877,54 +1048,285 @@ function ProfileModal({ isOpen, onClose, currentUser }) {
     }
   }
 
+  // ── Link account
+  async function handleLink(type) {
+    if (!linkInput) return;
+    setLinking(true); setError(''); setSuccess('');
+    try {
+      const col   = currentUser.loginMethod === 'mobile' ? 'users_mobile' : 'users';
+      const field = type === 'email' ? 'email' : 'mobile';
+      await window.db.collection(col).doc(currentUser.uid).update({ [field]: linkInput });
+      setLinkedAccounts(prev => ({ ...prev, [type === 'email' ? 'email' : 'phone']: linkInput }));
+      setSuccess(`${type === 'email' ? 'Email' : 'Phone'} linked successfully! ✅`);
+      setLinkInput('');
+      setShowLinkEmail(false);
+      setShowLinkPhone(false);
+    } catch(err) {
+      setError('Failed: ' + err.message);
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  // ── Unlink account
+  async function handleUnlink(type) {
+    setLinking(true); setError(''); setSuccess('');
+    try {
+      const col   = currentUser.loginMethod === 'mobile' ? 'users_mobile' : 'users';
+      const field = type === 'email' ? 'email' : 'mobile';
+      await window.db.collection(col).doc(currentUser.uid)
+        .update({ [field]: firebase.firestore.FieldValue.delete() });
+      setLinkedAccounts(prev => ({ ...prev, [type === 'email' ? 'email' : 'phone']: null }));
+      setSuccess(`${type === 'email' ? 'Email' : 'Phone'} unlinked. ✅`);
+    } catch(err) {
+      setError('Failed: ' + err.message);
+    } finally {
+      setLinking(false);
+    }
+  }
+
+  // ── Helper: linked account row
+  // isPrimary = true  → show "Primary" badge, no unlink allowed
+  // isPrimary = false → show Unlink or +Link depending on value
+  function LinkedRow({ icon, label, value, isPrimary, onLink, onUnlink, primaryColor }) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px', borderRadius: 14, marginBottom: 10,
+        background: value ? 'rgba(52,199,89,.08)' : 'rgba(0,0,0,.04)',
+        border: `1px solid ${value ? 'rgba(52,199,89,.25)' : 'var(--border-m)'}`
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1.2rem' }}>{icon}</span>
+          <div>
+            <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--t2)' }}>{label}</div>
+            <div style={{ fontSize: '.72rem', color: value ? 'var(--green)' : 'var(--t3)' }}>
+              {value || 'Not linked'}
+            </div>
+          </div>
+        </div>
+        {isPrimary
+          ? (
+            // Primary account — cannot unlink
+            <span style={{
+              padding: '4px 10px', borderRadius: 100,
+              background: primaryColor === 'green'
+                ? 'rgba(52,199,89,.1)' : 'rgba(0,122,255,.1)',
+              border: primaryColor === 'green'
+                ? '1px solid rgba(52,199,89,.2)' : '1px solid rgba(0,122,255,.2)',
+              color: primaryColor === 'green' ? 'var(--green)' : 'var(--accent)',
+              fontSize: '.68rem', fontWeight: 700
+            }}>Primary</span>
+          )
+          : value
+            ? (
+              <button onClick={onUnlink} style={{
+                padding: '4px 12px', borderRadius: 100,
+                background: 'rgba(255,59,48,.1)', border: '1px solid rgba(255,59,48,.25)',
+                color: 'var(--red)', fontSize: '.72rem', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit'
+              }}>Unlink</button>
+            )
+            : (
+              <button onClick={onLink} style={{
+                padding: '4px 12px', borderRadius: 100,
+                background: 'rgba(0,122,255,.1)', border: '1px solid rgba(0,122,255,.25)',
+                color: 'var(--accent)', fontSize: '.72rem', fontWeight: 700,
+                cursor: 'pointer', fontFamily: 'inherit'
+              }}>+ Link</button>
+            )
+        }
+      </div>
+    );
+  }
+
   return (
-    <div className="glass-overlay" onClick={onClose}>
-      <div className="profile-modal" onClick={e => e.stopPropagation()}>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'rgba(0,0,0,0.4)',
+        backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+        padding: 20, overflowY: 'auto'
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'relative', width: '100%', maxWidth: 460,
+          maxHeight: '90vh', overflowY: 'auto', margin: 'auto',
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 28, padding: 32,
+          boxShadow: 'var(--sh-l)'
+        }}
+      >
         <button className="pm-close" onClick={onClose}>✕</button>
 
-        {/* Header */}
+        {/* ── Header — Avatar + Name ── */}
         <div className="pm-header">
-           <div className="pm-avatar">
-             {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
-             <div className="pm-avatar-edit">📷</div>
-           </div>
-           <h2>{currentUser.displayName}</h2>
-           <p>{currentUser.loginMethod === 'mobile' ? currentUser.mobile : currentUser.email}</p>
+          <div
+            onClick={() => fileInputRef.current.click()}
+            style={{
+              width: 80, height: 80, borderRadius: '50%',
+              background: photoURL ? 'transparent'
+                : currentUser.loginMethod === 'mobile'
+                  ? 'linear-gradient(135deg,#34c759,#30d158)'
+                  : 'linear-gradient(135deg,#ff9f0a,#ff6b00)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '2rem', fontWeight: 800, color: '#fff',
+              cursor: 'pointer', overflow: 'hidden', position: 'relative',
+              margin: '0 auto 12px', flexShrink: 0,
+              boxShadow: '0 4px 20px rgba(0,0,0,.15)'
+            }}
+          >
+            {photoURL
+              ? <img src={photoURL} alt="avatar"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span>{(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}</span>
+            }
+            {/* Camera overlay on hover */}
+            <div
+              className="pm-avatar-cam-overlay"
+              style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.45)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: 0, transition: 'opacity .2s', fontSize: '1.3rem'
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = 1}
+              onMouseLeave={e => e.currentTarget.style.opacity = 0}
+            >📷</div>
+            {/* Uploading spinner */}
+            {uploading && (
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                background: 'rgba(0,0,0,0.65)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '.65rem', color: '#fff', fontWeight: 700
+              }}>Uploading…</div>
+            )}
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={handlePhotoUpload}
+          />
+
+          <h2>{currentUser.displayName}</h2>
+          <p>{currentUser.loginMethod === 'mobile' ? currentUser.mobile : currentUser.email}</p>
         </div>
 
-        {error && <div className="pm-msg-error">{error}</div>}
+        {error   && <div className="pm-msg-error">{error}</div>}
         {success && <div className="pm-msg-success">{success}</div>}
 
-        {/* Binding Section */}
+        {/* ── Linked Accounts ── */}
         <div className="pm-section">
-          <h3>{currentUser.loginMethod === 'mobile' ? '📧 Link Email Address' : '📱 Link Mobile Number'}</h3>
-          <div className="pm-input-wrap">
-             <input className="pm-input" 
-                placeholder={currentUser.loginMethod === 'mobile' ? 'you@email.com' : '9876543210'} 
-                value={linkInput} onChange={e => setLinkInput(e.target.value)} />
-          </div>
-          <button className="pm-btn-sec" style={{marginTop: 8}} disabled={linking} onClick={handleLinkAccount}>
-             {linking ? 'Updating...' : 'Link Account'}
-          </button>
+          <h3>🔗 Linked Accounts</h3>
+          <LinkedRow
+            icon="📧" label="Email" value={linkedAccounts.email}
+            isPrimary={currentUser.loginMethod === 'email'}
+            primaryColor="blue"
+            onLink={() => { setShowLinkPhone(false); setShowLinkEmail(true); setLinkInput(''); }}
+            onUnlink={() => handleUnlink('email')}
+          />
+          <LinkedRow
+            icon="📱" label="Phone" value={linkedAccounts.phone}
+            isPrimary={currentUser.loginMethod === 'mobile'}
+            primaryColor="green"
+            onLink={() => { setShowLinkEmail(false); setShowLinkPhone(true); setLinkInput(''); }}
+            onUnlink={() => handleUnlink('phone')}
+          />
+          {showLinkEmail && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="pm-input"
+                placeholder="Enter email address"
+                value={linkInput}
+                onChange={e => setLinkInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLink('email')}
+                style={{ flex: 1, marginBottom: 0 }}
+              />
+              <button
+                onClick={() => handleLink('email')}
+                disabled={linking || !linkInput}
+                style={{
+                  height: 44, padding: '0 18px', borderRadius: 100, border: 'none',
+                  background: 'linear-gradient(135deg,#ff9f0a,#007aff)',
+                  color: '#fff', fontWeight: 700, fontSize: '.82rem',
+                  cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                  opacity: linking || !linkInput ? .6 : 1
+                }}
+              >{linking ? '…' : 'Save'}</button>
+              <button
+                onClick={() => { setShowLinkEmail(false); setLinkInput(''); }}
+                style={{
+                  height: 44, width: 44, borderRadius: 100,
+                  border: '1px solid var(--border-m)',
+                  background: 'transparent', cursor: 'pointer', fontSize: '1rem', flexShrink: 0
+                }}
+              >✕</button>
+            </div>
+          )}
+          {showLinkPhone && (
+            <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="pm-input"
+                placeholder="+91 9876543210"
+                value={linkInput}
+                onChange={e => setLinkInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleLink('phone')}
+                style={{ flex: 1, marginBottom: 0 }}
+              />
+              <button
+                onClick={() => handleLink('phone')}
+                disabled={linking || !linkInput}
+                style={{
+                  height: 44, padding: '0 18px', borderRadius: 100, border: 'none',
+                  background: 'linear-gradient(135deg,#ff9f0a,#007aff)',
+                  color: '#fff', fontWeight: 700, fontSize: '.82rem',
+                  cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                  opacity: linking || !linkInput ? .6 : 1
+                }}
+              >{linking ? '…' : 'Save'}</button>
+              <button
+                onClick={() => { setShowLinkPhone(false); setLinkInput(''); }}
+                style={{
+                  height: 44, width: 44, borderRadius: 100,
+                  border: '1px solid var(--border-m)',
+                  background: 'transparent', cursor: 'pointer', fontSize: '1rem', flexShrink: 0
+                }}
+              >✕</button>
+            </div>
+          )}
         </div>
 
-        {/* Password Section */}
+        {/* ── Change Password ── */}
         <div className="pm-section">
           <h3>🔒 Change Password</h3>
           <div className="pm-input-wrap">
-             <input className="pm-input" type="password" placeholder="Current Password" 
-                value={passwordForm.current} onChange={e => setPasswordForm({...passwordForm, current: e.target.value})} />
+            <input className="pm-input" type="password" placeholder="Current Password"
+              value={passwordForm.current}
+              onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} />
           </div>
           <div className="pm-input-wrap">
-             <input className="pm-input" type="password" placeholder="New Password" 
-                value={passwordForm.newPass} onChange={e => setPasswordForm({...passwordForm, newPass: e.target.value})} />
+            <input className="pm-input" type="password" placeholder="New Password"
+              value={passwordForm.newPass}
+              onChange={e => setPasswordForm({ ...passwordForm, newPass: e.target.value })} />
           </div>
           <div className="pm-input-wrap">
-             <input className="pm-input" type="password" placeholder="Confirm Password" 
-                value={passwordForm.confirm} onChange={e => setPasswordForm({...passwordForm, confirm: e.target.value})} />
+            <input className="pm-input" type="password" placeholder="Confirm Password"
+              value={passwordForm.confirm}
+              onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} />
           </div>
-          <button className="pm-btn" style={{marginTop: 8}} disabled={linking} onClick={handleUpdatePassword}>
-             {linking ? 'Updating...' : 'Update Password'}
+          <button className="pm-btn" style={{ marginTop: 8 }}
+            disabled={linking} onClick={handleUpdatePassword}>
+            {linking ? 'Updating…' : 'Update Password'}
           </button>
         </div>
 
@@ -938,7 +1340,26 @@ function ProfileModal({ isOpen, onClose, currentUser }) {
 // ──────────────────────────────────────────
 
 function App() {
+  // ── FIX: Force scroll to top on mount — prevents auto-scroll to Control Panel
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.body.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+  }, []);
+
+  // ── FIX: Re-enable smooth scroll after initial load
+  useEffect(() => {
+    const t = setTimeout(() => {
+      document.documentElement.style.scrollBehavior = 'smooth';
+    }, 500);
+    return () => clearTimeout(t);
+  }, []);
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // ── Photo URL for Navbar avatar (loaded from Firestore + updated via CustomEvent)
+  const [userPhotoURL, setUserPhotoURL] = useState(null);
+
   // ── Consolidated Auth Guard ──
   // Accepts EITHER a Firebase Auth session (email login)
   // OR a localStorage mobile session (custom Firestore login).
@@ -1107,6 +1528,18 @@ function App() {
   useEffect(() => { sunsetRef.current = sunset; }, [sunset]);
   useEffect(() => { cloudRef.current = cloudCover; }, [cloudCover]);
 
+  // ── Load photo URL for navbar avatar + listen for live updates from ProfileModal
+  useEffect(() => {
+    if (!currentUser) return;
+    const col = currentUser.loginMethod === 'mobile' ? 'users_mobile' : 'users';
+    window.db.collection(col).doc(currentUser.uid).get().then(doc => {
+      if (doc.exists && doc.data().photoURL) setUserPhotoURL(doc.data().photoURL);
+    });
+    const handler = (e) => setUserPhotoURL(e.detail.photoURL);
+    window.addEventListener('raymax-photo-updated', handler);
+    return () => window.removeEventListener('raymax-photo-updated', handler);
+  }, [currentUser]);
+
   // ── Load today's dailyWh from Firestore once currentUser is known
   // Uses currentUser.uid for email users, or mobile number for mobile users.
   useEffect(() => {
@@ -1187,7 +1620,7 @@ function App() {
 
     let tilt = panelTilt, az = panelAzimuth;
     if (modeRef.current === "auto") {
-      tilt = Math.max(0, sp.el);
+      tilt = sp.el > 0 ? Math.max(0, 90 - sp.el) : 0;
       az = sp.az;
       setPanelTilt(tilt);
       setPanelAzimuth(az);
@@ -1438,6 +1871,7 @@ function App() {
           onToggleTheme={toggleTheme}
           currentUser={currentUser}
           onProfileClick={() => setIsProfileOpen(true)}
+          userPhotoURL={userPhotoURL}
         />
 
         {/* Alert Bar — dismiss removes by index so the pill actually disappears */}
@@ -1535,7 +1969,7 @@ function App() {
           </div>
 
           {/* Historical charts — last 60 readings via HistoryBuffer */}
-          <HistoryCharts tick={historyTick} />
+          <HistoryCharts tick={historyTick} theme={theme} />
         </main>
       </div>
 

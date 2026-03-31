@@ -14,13 +14,19 @@
 
 /* ── BODY ───────────────────────────────────────────────────── */
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: "Datatype", monospace;
+  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 100;
   min-height: 100vh;
+  height: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   background: #eef1f8;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px 16px;
+  box-sizing: border-box;
   position: relative;
   -webkit-font-smoothing: antialiased;
 }
@@ -31,11 +37,12 @@ body {
 
 /* ── ANIMATED BACKGROUND BLOBS ─────────────────────────────── */
 .blob {
-  position: absolute;
+  position: fixed;   /* fixed so blobs don't expand scrollable document height */
   border-radius: 50%;
   filter: blur(100px);
   opacity: .5;
   pointer-events: none;
+  z-index: 0;
 }
 
 .b1 {
@@ -92,6 +99,10 @@ body {
   z-index: 10;
   width: 420px;
   max-width: 95vw;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  margin: auto;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
@@ -160,9 +171,10 @@ body {
 }
 
 .auth-title {
+  font-family: "Josefin Sans", sans-serif;
   font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -.03em;
+  font-weight: 700;
+  letter-spacing: -.02em;
   color: #12131a;
 }
 
@@ -193,9 +205,10 @@ body {
   border-radius: 100px;
   border: none;
   background: transparent;
-  font-family: 'Inter', sans-serif;
+  font-family: "Josefin Sans", sans-serif;
   font-size: .85rem;
   font-weight: 600;
+  letter-spacing: .04em;
   color: #9097b8;
   cursor: pointer;
   transition: all .3s ease;
@@ -238,7 +251,8 @@ body {
   border-radius: 14px;
   border: 1.5px solid rgba(0, 0, 0, 0.09);
   background: rgba(0, 0, 0, 0.03);
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
+  font-weight: 400;
   font-size: .9rem;
   color: #12131a;
   transition: all .2s ease;
@@ -286,9 +300,10 @@ body {
   cursor: pointer;
   background: linear-gradient(135deg, #ff9f0a 0%, #ff6b00 40%, #007aff 100%);
   color: #fff;
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
   font-size: .95rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: .02em;
   box-shadow: 0 4px 20px rgba(255, 159, 10, 0.35);
   transition: all .25s ease;
   margin-top: 8px;
@@ -320,7 +335,7 @@ body {
   border: 1.5px solid rgba(0, 0, 0, 0.10);
   background: transparent;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
   font-size: .85rem;
   font-weight: 600;
   color: #4a506e;
@@ -378,10 +393,11 @@ body {
   height: 54px;
   text-align: center;
   font-size: 1.4rem;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: -.02em;
   border: 2px solid rgba(0, 0, 0, 0.10);
   border-radius: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
   background: rgba(0, 0, 0, 0.03);
   color: #12131a;
   outline: none;
@@ -473,7 +489,7 @@ body {
   cursor: pointer;
   background: none;
   border: none;
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
   padding: 0;
   transition: opacity .18s ease;
 }
@@ -496,7 +512,7 @@ body {
   border-radius: 14px;
   border: 1.5px solid rgba(0, 0, 0, 0.09);
   background: rgba(0, 0, 0, 0.03);
-  font-family: 'Inter', sans-serif;
+  font-family: "Datatype", monospace;
   font-size: .9rem;
   text-align: center;
   font-weight: 600;
@@ -557,9 +573,10 @@ body {
 }
 
 .auth-footer-text {
+  font-family: "Josefin Sans", sans-serif;
   font-size: .68rem;
   font-weight: 700;
-  letter-spacing: .10em;
+  letter-spacing: .12em;
   text-transform: uppercase;
   color: #9097b8;
 }
@@ -582,6 +599,27 @@ body {
 
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
 @media (max-width: 480px) {
-  body       { overflow-y: auto; align-items: flex-start; padding: 20px 0; }
+  body       { padding: 20px 12px; }
   .auth-card { padding: 28px 20px 24px; border-radius: 20px; }
+}
+
+/* Zoomed in or short viewport */
+@media (max-height: 700px) {
+  body {
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .auth-card {
+    margin: 0 auto;
+  }
+}
+
+/* Very short viewport (landscape mobile / extreme zoom) */
+@media (max-height: 500px) {
+  body {
+    padding: 12px;
+  }
+  .auth-card {
+    padding: 24px;
+  }
 }

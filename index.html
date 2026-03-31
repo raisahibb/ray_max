@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>RAYMAX — Solar Tracking System</title>
 <meta name="description" content="Real-time solar panel tracking system with GPS, live weather, and 3D visualization."/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Datatype:wght@100..900&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css"/>
 
 <!-- Force scroll to top on every load — prevents browser from restoring old scroll position -->
@@ -51,6 +52,8 @@
   window.auth = firebase.auth();
   window.db = firebase.firestore();
 </script>
+
+
 
 <!-- Utility functions (pure JS — no DOM, no React) -->
 <script src="script.js"></script>

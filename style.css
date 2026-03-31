@@ -18,6 +18,9 @@
   --sh-s: 0 2px 12px rgba(0, 0, 0, 0.06);
   --sh-m: 0 8px 36px rgba(0, 0, 0, 0.12);
   --sh-l: 0 20px 60px rgba(0, 0, 0, 0.18);
+  --font-display: "Josefin Sans", sans-serif;
+  --font-body: "Datatype", monospace;
+  --font-mono: "Datatype", monospace;
 }
 
 [data-theme="dark"] {
@@ -51,17 +54,19 @@
 }
 
 html {
-  scroll-behavior: auto
+  scroll-behavior: auto !important  /* disable smooth scroll on load */
 }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 100;
   background: var(--bg);
   color: var(--t1);
   min-height: 100vh;
   overflow-x: hidden;
   transition: background .4s cubic-bezier(.4, 0, .2, 1), color .4s cubic-bezier(.4, 0, .2, 1);
-  padding-top: 108px  /* 68px navbar + ~40px alert bar */
+  padding-top: 124px
 }
 
 /* ── MARQUEE ── */
@@ -239,41 +244,83 @@ body {
 /* ── NAVBAR ── */
 .navbar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  height: 68px;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
+  width: max-content;
+  max-width: 920px;
+  min-width: 580px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
-  background: rgba(240, 242, 248, 0.88);
-  backdrop-filter: blur(var(--blur)) saturate(200%);
-  -webkit-backdrop-filter: blur(var(--blur)) saturate(200%);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  animation: slideDown .6s ease both
+  gap: 20px;
+  padding: 10px 20px;
+
+  /* ── FROSTED GLASS ── */
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(180%) brightness(1.1);
+
+  /* Pill shape */
+  border-radius: 100px;
+
+  /* Thin white border — glass edge */
+  border: 1px solid rgba(255, 255, 255, 0.75);
+
+  /* Layered shadow — floats above */
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.04) inset;
+
+  animation: floatNavIn .5s cubic-bezier(.34, 1.2, .64, 1) both;
+  transition: background .3s ease, box-shadow .3s ease, backdrop-filter .3s ease;
 }
 
+/* When scrolled — glass gets stronger */
+.navbar.scrolled {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(32px) saturate(200%) brightness(1.05);
+  -webkit-backdrop-filter: blur(32px) saturate(200%) brightness(1.05);
+  box-shadow:
+    0 4px 28px rgba(0, 0, 0, 0.10),
+    0 1px 0 rgba(255, 255, 255, 1) inset;
+}
+
+/* Dark mode — dark frosted glass */
 [data-theme="dark"] .navbar {
-  background: rgba(10, 10, 15, 0.85);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.8), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%)
+  background: rgba(14, 14, 20, 0.60);
+  backdrop-filter: blur(24px) saturate(180%) brightness(0.9);
+  -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(0.9);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 2px 20px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.07) inset;
+}
+
+[data-theme="dark"] .navbar.scrolled {
+  background: rgba(10, 10, 16, 0.78);
+  backdrop-filter: blur(36px) saturate(200%) brightness(0.85);
+  -webkit-backdrop-filter: blur(36px) saturate(200%) brightness(0.85);
+  box-shadow:
+    0 6px 40px rgba(0, 0, 0, 0.65),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }
 
 @keyframes slideDown {
+  from { opacity: 0; transform: translateY(-18px) }
+  to   { opacity: 1; transform: none }
+}
+
+@keyframes floatNavIn {
   from {
     opacity: 0;
-    transform: translateY(-18px)
+    transform: translateX(-50%) translateY(-20px) scale(0.97);
   }
-
   to {
     opacity: 1;
-    transform: none
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -284,9 +331,9 @@ body {
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: transparent;
   display: flex;
   align-items: center;
@@ -302,29 +349,30 @@ body {
 }
 
 .logo-text .lt {
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: -.03em;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -.05em;
+  font-variation-settings: "wdth" 100;
   color: var(--t1)
 }
 
 .logo-text .ls {
-  font-size: .65rem;
+  font-size: .75rem;
   color: var(--t3);
   letter-spacing: .04em;
   margin-top: 1px
 }
 
-/* nav-center is absolutely placed so extra right-side buttons never push it off-center */
+/* nav-center: flex:1 so it fills remaining space and stays naturally centered */
 .nav-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex: 1;
   text-align: center;
-  pointer-events: none    /* clicks fall through to underlying elements */
+  pointer-events: none
 }
 
 .live-clock {
+  font-family: var(--font-mono);
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -.04em;
@@ -345,23 +393,44 @@ body {
   gap: 10px
 }
 
+/* ── NAV SIDE CLUSTER — LIVE badge + Location (right of screen, separate from pill) ── */
+.nav-side-cluster {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  animation: floatNavIn .6s .1s cubic-bezier(.34, 1.2, .64, 1) both;
+  pointer-events: none   /* let clicks pass through — badges are read-only */
+}
+
 .loc-pill {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px 14px;
   border-radius: var(--r-pill);
-  background: var(--surface);
-  border: 1px solid var(--border-m);
-  font-size: .78rem;
+  background: rgba(255, 255, 255, 0.60);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  font-size: .75rem;
   font-weight: 500;
   color: var(--t2);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--sh-s);
-  max-width: 200px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  max-width: 220px;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis
+}
+
+[data-theme="dark"] .loc-pill {
+  background: rgba(14, 14, 20, 0.65);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--t2)
 }
 
 .live-badge {
@@ -434,9 +503,10 @@ main {
 }
 
 .section-title {
+  font-family: var(--font-display);
   font-size: .7rem;
   font-weight: 700;
-  letter-spacing: .1em;
+  letter-spacing: .15em;
   text-transform: uppercase;
   color: var(--t3);
   margin-bottom: 18px
@@ -491,8 +561,9 @@ main {
 }
 
 .card-label {
+  font-family: var(--font-display);
   font-size: .68rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--t3);
@@ -666,7 +737,7 @@ main {
 .ps-val {
   font-size: 1.2rem;
   font-weight: 800;
-  letter-spacing: -.03em;
+  letter-spacing: -.04em;
   color: var(--t1)
 }
 
@@ -712,7 +783,7 @@ main {
   fill: var(--t3);
   font-size: 9px;
   font-weight: 700;
-  font-family: 'Inter', sans-serif
+  font-family: var(--font-body)
 }
 
 .sun-path-line {
@@ -827,6 +898,7 @@ main {
 }
 
 .ctrl-title-block .ct {
+  font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 700;
   color: var(--t1)
@@ -1020,7 +1092,8 @@ main {
   background: rgba(0, 122, 255, 0.12);
   border: 1px solid rgba(0, 122, 255, 0.30);
   font-size: .85rem;
-  font-weight: 800;
+  font-weight: 900;
+  letter-spacing: -.02em;
   color: var(--accent);
   min-width: 56px;
   text-align: center;
@@ -1215,18 +1288,20 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 .w-title {
+  font-family: var(--font-display);
   font-size: .65rem;
-  font-weight: 700;
-  letter-spacing: .08em;
+  font-weight: 600;
+  letter-spacing: .12em;
   text-transform: uppercase;
   color: var(--t3);
   margin-bottom: 10px
 }
 
 .w-main {
+  font-family: var(--font-body);
   font-size: 1.6rem;
   font-weight: 900;
-  letter-spacing: -.04em;
+  letter-spacing: -.05em;
   color: var(--t1);
   line-height: 1
 }
@@ -1557,32 +1632,35 @@ input[type=range]::-webkit-slider-thumb:hover {
 ═══════════════════════════════════════════════════════════════ */
 
 .alert-bar {
-  /* Fixed — flush under navbar, matches exactly */
+  /* Floating format */
   position: fixed;
-  top: 68px;
-  left: 0;
-  right: 0;
-  width: 100%;
+  top: 96px; /* 20 + 68 + 8 gap */
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 40px);
   z-index: 90;
-  padding: 6px 28px;
+  padding: 6px 24px;
   margin-bottom: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(240, 242, 248, 0.88);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  animation: slideDown .5s .1s ease both;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  animation: slideDownNav .5s .1s ease both;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: var(--r-pill); /* match navbar float style */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
   min-height: 40px;
   transition: min-height .3s ease, padding .3s ease
 }
 
 /* Collapsed state — only the toggle chevron shows */
 .alert-bar--collapsed {
-  padding: 4px 28px;
+  padding: 4px 24px;
   min-height: 28px
 }
 
@@ -1593,7 +1671,8 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 [data-theme="dark"] .alert-bar {
   background: rgba(10, 10, 15, 0.80);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06)
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6)
 }
 
 /* ── Collapse / expand chevron button ── */
@@ -1601,7 +1680,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   border: none;
   background: none;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-body);
   font-size: .72rem;
   font-weight: 600;
   color: var(--t3);
@@ -1726,7 +1805,8 @@ input[type=range]::-webkit-slider-thumb:hover {
   border-radius: var(--r-pill);
   border: 1px solid var(--border-m);
   background: var(--bg);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
+  font-weight: 500;
   font-size: .85rem;
   color: var(--t1);
   outline: none;
@@ -1793,7 +1873,8 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 /* small mono status label */
 .ws-info-text {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
+  font-weight: 400;
   font-size: .75rem;
   color: var(--t3)
 }
@@ -1862,13 +1943,15 @@ input[type=range]::-webkit-slider-thumb:hover {
 ═══════════════════════════════════════════════════════════════ */
 
 .serial-monitor {
-  background: #0a0a0f;                 /* fixed dark regardless of theme */
+  background: #0a0a0f;
   border: 1px solid rgba(48, 209, 88, 0.20);
   border-radius: 16px;
   padding: 14px;
   height: 180px;
   overflow-y: auto;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: .04em;
   font-size: .7rem
 }
 
@@ -1942,6 +2025,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 /* ── section heading — mirrors .section-title exactly ── */
 .chart-section-title {
+  font-family: var(--font-display);
   font-size: .7rem;
   font-weight: 700;
   letter-spacing: .1em;
@@ -1954,16 +2038,16 @@ input[type=range]::-webkit-slider-thumb:hover {
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px
+  gap: 20px
 }
 
-@media (max-width: 900px) {
+@media (max-width: 800px) {
   .charts-grid {
     grid-template-columns: 1fr
   }
 }
 
-/* ── each chart card — full .glass-card clone + extra padding ── */
+/* ── each chart card ── */
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1971,8 +2055,11 @@ input[type=range]::-webkit-slider-thumb:hover {
   backdrop-filter: blur(var(--blur)) saturate(180%);
   -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
   box-shadow: var(--sh-s), inset 0 1px 0 rgba(255, 255, 255, .6);
-  padding: 20px;
-  min-height: 220px;                  /* equal heights across all 3 chart cards */
+  padding: 24px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   transition: box-shadow .3s ease
 }
 
@@ -2000,8 +2087,9 @@ input[type=range]::-webkit-slider-thumb:hover {
 
 /* ── chart label — mirrors .card-label exactly ── */
 .chart-card-label {
+  font-family: var(--font-display);
   font-size: .68rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--t3);
@@ -2011,10 +2099,13 @@ input[type=range]::-webkit-slider-thumb:hover {
   gap: 6px
 }
 
-/* ── canvas wrapper with fixed height for Chart.js ── */
+/* ── canvas wrapper — fills remaining card space ── */
 .chart-canvas-wrap {
   position: relative;
-  height: 160px
+  flex: 1;
+  min-height: 220px;
+  min-width: 0;
+  width: 100%;
 }
 
 /* ──────────────────────────────────────────
@@ -2200,4 +2291,121 @@ input[type=range]::-webkit-slider-thumb:hover {
   font-weight: 600;
   margin-bottom: 16px;
   text-align: center;
+}
+
+/* ──────────────────────────────────────────
+   MOBILE RESPONSIVENESS AND POLISH
+   ────────────────────────────────────────── */
+
+/* Navbar and overall layout for tablets/phones */
+@media (max-width: 768px) {
+  body {
+    padding-top: 100px;
+  }
+  .navbar {
+    top: 12px;
+    min-width: unset;
+    width: calc(100% - 24px);
+    max-width: calc(100% - 24px);
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  .nav-logo .logo-text {
+    display: none;
+  }
+  .nav-center {
+    text-align: left;
+  }
+  .live-clock {
+    font-size: 1.15rem;
+  }
+  .nav-right {
+    gap: 8px;
+  }
+  /* Side cluster hidden on mobile — saves space */
+  .nav-side-cluster {
+    display: none;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .alert-bar {
+    top: 72px; /* 12 + ~52 pill height + 8 gap */
+    width: max-content;
+    max-width: calc(100% - 24px);
+    padding: 6px 16px;
+  }
+
+  .scene-wrap {
+    transform: scale(0.85); /* shrink 3D panel */
+  }
+  .panel-stats {
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+  }
+  .ps-item {
+    width: 45%;
+  }
+
+  .ctrl-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mode-pills {
+    width: 100%;
+    margin-top: 8px;
+    justify-content: space-between;
+  }
+  .mode-pill {
+    flex: 1;
+    justify-content: center;
+  }
+  .auto-info-box {
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+}
+
+/* Specific overrides for small phones */
+@media (max-width: 480px) {
+  .widget.ldr-widget, 
+  .widget.serial-widget {
+    grid-column: span 1 !important; /* Prevents overflow when grid is 1 column */
+  }
+  .widget {
+    padding: 14px 16px;
+    min-height: auto;
+  }
+  .scene-wrap {
+    transform: scale(0.7); /* make 3D model fit tiny screens */
+    height: 180px;
+  }
+  .compass-svg-wrap svg {
+    width: 180px;
+    height: 180px;
+  }
+  .live-clock {
+    font-size: 1.1rem;
+  }
+  main {
+    padding: 0 14px;
+  }
+  .ws-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ws-ip-input {
+    width: 100%;
+  }
+  .ws-connect-btn {
+    width: 100%;
+  }
 }
