@@ -248,7 +248,7 @@ function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
 
 function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, onSliderY }) {
   const xPct = ((panelTilt - 0) / 90 * 100).toFixed(1);
-  const yPct = ((panelAzimuth - 0) / 360 * 100).toFixed(1);
+  const yPct = ((panelAzimuth - 0) / 180 * 100).toFixed(1);
 
   return (
     <div className="control-section">
@@ -307,24 +307,23 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
               <div className="slc-head">
                 <div>
                   <div className="slc-title">↻ Y Axis — Azimuth</div>
-                  <div className="slc-desc">Compass direction (rotation)</div>
+                  <div className="slc-desc">Servo rotation</div>
                 </div>
                 <div className="slc-badge az">{panelAzimuth.toFixed(0)}°</div>
               </div>
               <input
                 type="range" id="ySlider"
-                min="0" max="360"
-                value={panelAzimuth}
+                min="0" max="180"
+                value={Math.min(180, panelAzimuth)}
                 className="az-slider"
-                style={{"--val": yPct + "%"}}
+                style={{"--val": Math.min(100, Math.max(0, yPct)) + "%"}}
                 onChange={e => onSliderY(parseFloat(e.target.value))}
               />
               <div className="slc-ends">
-                <span>0° N</span><span>180° S</span><span>360° N</span>
+                <span>0°</span><span>90°</span><span>180°</span>
               </div>
-              <div className="dir-labels">
-                <span>N</span><span>NE</span><span>E</span><span>SE</span>
-                <span>S</span><span>SW</span><span>W</span><span>NW</span><span>N</span>
+              <div className="dir-labels" style={{justifyContent: 'space-between', padding: '0 5px'}}>
+                <span>0°</span><span>45°</span><span>90°</span><span>135°</span><span>180°</span>
               </div>
             </div>
           </div>
@@ -685,7 +684,7 @@ function WSPanel({ ip, onIpChange, status, onConnect, onDisconnect, lastSeen }) 
         className="ws-ip-input"
         value={ip}
         onChange={e => onIpChange(e.target.value)}
-        placeholder="192.168.1.100"
+        placeholder="192.168.241.244"
         disabled={isConn || isRecon}
         autoFocus={false}
       />
@@ -738,20 +737,22 @@ function LDRWidget({ data }) {
 // ──────────────────────────────────────────
 
 function SerialMonitor({ log, onClear }) {
-  const endRef = useRef(null);
+  const containerRef = useRef(null);
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-    endRef.current && endRef.current.scrollIntoView({ behavior: "smooth" });
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
   }, [log]);
   return (
     <div className="widget serial-widget">
       <div className="w-icon">📡</div>
       <div className="w-title">Serial Monitor — ESP32 Live Feed</div>
-      <div className="serial-monitor">
+      <div className="serial-monitor" ref={containerRef}>
         {log.length === 0
           ? <span className="serial-line" style={{opacity:.4}}>Waiting for ESP32 data…</span>
           : log.map((l, i) => (
@@ -760,7 +761,6 @@ function SerialMonitor({ log, onClear }) {
             </span>
           ))
         }
-        <div ref={endRef} />
       </div>
       <button className="serial-clear-btn" onClick={onClear}>🗑 Clear Log</button>
     </div>
@@ -1488,7 +1488,7 @@ function App() {
   const [pressure, setPressure] = useState(1013);
 
   // ── WebSocket
-  const [wsIP, setWsIP]         = useState("192.168.1.100");
+  const [wsIP, setWsIP]         = useState("192.168.241.244");
   const [wsStatus, setWsStatus] = useState("disconnected"); // "connected"|"disconnected"|"reconnecting"
   const [wsLastSeen, setWsLastSeen] = useState(null);
   const wsRef = useRef(null);
@@ -1620,10 +1620,16 @@ function App() {
 
     let tilt = panelTilt, az = panelAzimuth;
     if (modeRef.current === "auto") {
-      tilt = sp.el > 0 ? Math.max(0, 90 - sp.el) : 0;
-      az = sp.az;
-      setPanelTilt(tilt);
-      setPanelAzimuth(az);
+      // If connected, let ESP32 handle its own tracking via LDRs. Do not override mathematically.
+      if (wsRef.current && wsRef.current.isConnected()) {
+        // No mathematical override. The UI will receive position updates via esp32Data
+      } else {
+        tilt = sp.el > 0 ? Math.max(0, 90 - sp.el) : 0;
+        az = sp.az;
+        if (az > 180) az = 180; 
+        setPanelTilt(tilt);
+        setPanelAzimuth(az);
+      }
     }
 
     const pwr = calcPower(sp.el, sp.az, tilt, az, cloudRef.current);
@@ -1654,6 +1660,36 @@ function App() {
     const pwr = calcPower(sunEl, sunAz, panelTilt, panelAzimuth, cloudCover);
     const newAlerts = checkAlerts({ ...esp32Data, power: pwr });
     setAlerts(newAlerts.filter(a => !dismissedAlerts.includes(a.msg)));
+
+    // Web-based Tracking Brain! Override the ESP32's internal tracking here to fix the Reverse Issue
+    if (modeRef.current === "auto") {
+      let { servo_tilt, servo_az, ldr_top, ldr_bottom, ldr_left, ldr_right } = esp32Data;
+      
+      const threshold = 100;
+      const step = 2;
+
+      // Vertical tracking (Tilt) — 🛠 FIX: Reversed Logic Applied
+      let diffV = ldr_top - ldr_bottom;
+      if (Math.abs(diffV) > threshold) {
+        if (diffV > 0) servo_tilt = Math.max(0, Math.min(180, servo_tilt - step)); // Fixed!
+        else           servo_tilt = Math.max(0, Math.min(180, servo_tilt + step)); // Fixed!
+      }
+
+      // Horizontal tracking (Azimuth)
+      let diffH = ldr_left - ldr_right;
+      if (Math.abs(diffH) > threshold) {
+        if (diffH > 0) servo_az = Math.max(0, Math.min(180, servo_az + step));
+        else           servo_az = Math.max(0, Math.min(180, servo_az - step));
+      }
+
+      setPanelTilt(servo_tilt);
+      setPanelAzimuth(servo_az);
+
+      // Force ESP32 motor to follow our fixed web-logic
+      if (wsRef.current && wsRef.current.isConnected()) {
+        wsRef.current.sendCommand(servo_tilt, servo_az);
+      }
+    }
 
     // Push to circular history buffer and nudge chart re-render
     HistoryBuffer.add({
@@ -1815,6 +1851,13 @@ function App() {
     setMode(m);
     modeRef.current = m;
     showToast(m==="auto"?"🤖":"🎛", m==="auto"?"Auto tracking enabled":"Manual control active");
+    
+    // Command the ESP32 to switch its internal mode
+    if (wsRef.current && wsRef.current.isConnected()) {
+      // By sending a 'move' command, we force the ESP32 into manual mode (mode=1).
+      // This allows our Web Dashboard to act as the Auto-Tracking Brain and fix the reverse motor issue!
+      if (m === "auto") wsRef.current.sendCommand(panelTilt, panelAzimuth);
+    }
   };
 
   // ── Derived values

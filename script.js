@@ -166,7 +166,7 @@ async function fetchGeocode(lat, lon) {
 /* ═══════════════════════════════════════════════════════════════
    SECTION 1 — WEBSOCKET MANAGER
    Class : RaymaxWS
-   Usage : const ws = new RaymaxWS("192.168.1.100");
+   Usage : const ws = new RaymaxWS("192.168.241.244");
            ws.connect();
            ws.onData(json => console.log(json));
            ws.sendCommand(30, 180);
@@ -220,6 +220,17 @@ class RaymaxWS {
       return;
     }
     const payload = JSON.stringify({ cmd: "move", tilt, azimuth });
+    this._socket.send(payload);
+  }
+
+  /**
+   * Send command to switch ESP32 to Auto (LDR tracking) mode.
+   */
+  sendAutoMode() {
+    if (!this.isConnected()) {
+      return;
+    }
+    const payload = JSON.stringify({ cmd: "auto" });
     this._socket.send(payload);
   }
 
