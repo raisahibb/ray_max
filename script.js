@@ -423,6 +423,23 @@ class _HistoryBuffer {
   constructor() {
     this.MAX  = 60;
     this._buf = []; // internal circular store
+
+    // Pre-fill with 15 initial simulated data points to make the charts look beautiful on load
+    const now = new Date();
+    for (let i = 15; i >= 1; i--) {
+      const t = new Date(now.getTime() - i * 5 * 60 * 1000); // 5 mins interval
+      const time = t.toLocaleTimeString("en-IN", {
+        hour:   "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      // Generate realistic daily ambient curves
+      const power = Math.max(0, Math.round(280 + Math.sin(i / 5) * 50 + (Math.random() * 15 - 7.5)));
+      const voltage = Math.max(0, Math.min(5.0, (power / 400) * 5.0 + (Math.random() * 0.2 - 0.1)));
+      const temperature = Math.round(28.5 + Math.cos(i / 8) * 3 + (Math.random() - 0.5));
+      
+      this._buf.push({ time, power, voltage, temperature });
+    }
   }
 
   /**

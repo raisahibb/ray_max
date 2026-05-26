@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../Users/NAKUN/Dropbox/js"
+		},
+		{
+			"path": "../Users/NAKUN/Dropbox/BCE practice"
+		},
+		{
+			"path": "../Users/NAKUN/Dropbox/MoneyVault-main"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "js"
+	}
+}

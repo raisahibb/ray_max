@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "raymax",
     "public": ".",
     "ignore": [
       "firebase.json",

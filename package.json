@@ -1,0 +1,24 @@
+{
+  "name": "raymax",
+  "version": "1.0.0",
+  "description": "> **Real-time solar panel tracking with GPS, live weather, robust authentication, ESP32 WebSocket integration, and 3D visualization running in a seamless glassmorphism React application.**",
+  "main": "script.js",
+  "scripts": {
+    "dev": "serve .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raisahibb/ray_max.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/raisahibb/ray_max/issues"
+  },
+  "homepage": "https://github.com/raisahibb/ray_max#readme",
+  "devDependencies": {
+    "serve": "^14.2.6"
+  }
+}

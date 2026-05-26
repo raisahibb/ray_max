@@ -130,9 +130,13 @@ function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onPro
 // ──────────────────────────────────────────
 
 function SolarPanel3D({ panelTilt, panelAzimuth, panelVoltage, efficiency }) {
-  const azOffset = panelAzimuth;
+  // Convert servo angles to physical angles for 3D rotation
+  const physicalTilt = Math.max(0, Math.min(90, 90 - (panelTilt / 2)));
+  const physicalAzimuth = Math.max(0, Math.min(360, panelAzimuth * 2));
+
+  const azOffset = physicalAzimuth;
   const pivotStyle = {
-    transform: `rotateY(${azOffset + 180}deg) rotateX(${panelTilt}deg)`
+    transform: `rotateY(${azOffset + 180}deg) rotateX(${physicalTilt}deg)`
   };
 
   return (
@@ -159,11 +163,11 @@ function SolarPanel3D({ panelTilt, panelAzimuth, panelVoltage, efficiency }) {
       <div className="panel-stats">
         <div className="ps-item">
           <div className="ps-val">{panelTilt.toFixed(1)}°</div>
-          <div className="ps-lbl">Tilt (X)</div>
+          <div className="ps-lbl">Servo X (Tilt)</div>
         </div>
         <div className="ps-item">
           <div className="ps-val">{panelAzimuth.toFixed(1)}°</div>
-          <div className="ps-lbl">Azimuth (Y)</div>
+          <div className="ps-lbl">Servo Y (Azim)</div>
         </div>
         <div className="ps-item">
           <div className="ps-val" style={{color:'var(--green)'}}>{panelVoltage.toFixed(2)} V</div>
@@ -183,8 +187,12 @@ function SolarPanel3D({ panelTilt, panelAzimuth, panelVoltage, efficiency }) {
 // ──────────────────────────────────────────
 
 function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
+  // Convert servo angles to physical angles for compass drawing
+  const physicalTilt = Math.max(0, Math.min(90, 90 - (panelTilt / 2)));
+  const physicalAzimuth = Math.max(0, Math.min(360, panelAzimuth * 2));
+
   const sunPos   = sunToXY(sunAz, sunEl);
-  const panelPos = sunToXY(panelAzimuth, panelTilt);
+  const panelPos = sunToXY(physicalAzimuth, physicalTilt);
   const isDay    = sunEl > 0;
 
   return (
@@ -246,9 +254,13 @@ function SunCompass({ sunEl, sunAz, panelTilt, panelAzimuth, pathD }) {
 // CONTROL PANEL
 // ──────────────────────────────────────────
 
-function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, onSliderY }) {
-  const xPct = ((panelTilt - 0) / 90 * 100).toFixed(1);
-  const yPct = ((panelAzimuth - 0) / 180 * 100).toFixed(1);
+function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, onSliderY, trackingMode, wsStatus }) {
+  const xPct = ((panelTilt - 0) / (140 - 0) * 100).toFixed(1);
+  const yPct = ((panelAzimuth - 12) / (180 - 12) * 100).toFixed(1);
+
+  const isConnected = wsStatus === "connected";
+  const isLDR = !trackingMode || trackingMode === "LDR";
+  const isSun = trackingMode === "SUN";
 
   return (
     <div className="control-section">
@@ -263,7 +275,8 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
               id="btnAuto"
               className={`mode-pill auto${mode === "auto" ? " active" : ""}`}
               onClick={() => onModeChange("auto")}
-            >🤖 Auto Track</button>
+              title="Enable automatic LDR / Sun-API tracking"
+            >⚡ Auto Track</button>
             <button
               id="btnManual"
               className={`mode-pill manual${mode === "manual" ? " active" : ""}`}
@@ -274,11 +287,103 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
 
         {mode === "auto" ? (
           <div className="auto-info-box">
-            <div className="aib-icon">🛰</div>
-            <div>
-              <div className="aib-title">Automatic Sun Tracking Active</div>
-              <div className="aib-sub">Panel continuously aligns to optimal sun position using real-time solar position algorithms based on your GPS coordinates and current time.</div>
+            <div className="aib-icon" style={{fontSize:'1.5rem'}}>⚡</div>
+            <div style={{flex:1}}>
+              <div className="aib-title">Auto Tracking Active</div>
+              <div className="aib-sub">
+                {!isConnected
+                  ? "ESP32 disconnected — simulating auto-tracking using local coordinates and Sun API."
+                  : trackingMode === "SUN"
+                    ? "LDR sensors inactive — panel is following sun position via Open-Meteo API."
+                    : "LDR sensors are guiding the panel toward the brightest light source."
+                }
+              </div>
             </div>
+            {/* ── Tracking Source Badge ── */}
+            {!isConnected ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 4, marginLeft: 'auto', flexShrink: 0
+              }}>
+                <div style={{
+                  fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
+                  color: 'var(--t3)', textTransform: 'uppercase'
+                }}>Data Source</div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', borderRadius: 999, fontWeight: 700,
+                  fontSize: '.78rem', letterSpacing: '.03em',
+                  background: 'linear-gradient(135deg, rgba(10,132,255,.18), rgba(10,132,255,.08))',
+                  border: '1.5px solid rgba(10,132,255,.45)',
+                  color: 'var(--accent)',
+                  boxShadow: '0 2px 10px rgba(10,132,255,.15)',
+                }}>
+                  <span style={{ fontSize: '1rem' }}>🌐</span>
+                  <span>Sun API (Sim)</span>
+                </div>
+                <div style={{
+                  fontSize: '.62rem', color: 'var(--t3)', textAlign: 'center', maxWidth: 90
+                }}>Open-Meteo</div>
+              </div>
+            ) : trackingMode ? (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 4, marginLeft: 'auto', flexShrink: 0
+              }}>
+                <div style={{
+                  fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
+                  color: 'var(--t3)', textTransform: 'uppercase'
+                }}>Data Source</div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', borderRadius: 999, fontWeight: 700,
+                  fontSize: '.78rem', letterSpacing: '.03em',
+                  background: isLDR
+                    ? 'linear-gradient(135deg, rgba(52,199,89,.18), rgba(52,199,89,.08))'
+                    : 'linear-gradient(135deg, rgba(255,159,10,.18), rgba(255,107,0,.08))',
+                  border: isLDR
+                    ? '1.5px solid rgba(52,199,89,.45)'
+                    : '1.5px solid rgba(255,159,10,.45)',
+                  color: isLDR ? 'var(--green)' : 'var(--gold)',
+                  boxShadow: isLDR
+                    ? '0 2px 10px rgba(52,199,89,.15)'
+                    : '0 2px 10px rgba(255,159,10,.15)',
+                }}>
+                  <span style={{ fontSize: '1rem' }}>{isLDR ? '☀️' : '🌐'}</span>
+                  <span>{isLDR ? 'LDR Sensors' : 'Sun API'}</span>
+                </div>
+                <div style={{
+                  fontSize: '.62rem', color: 'var(--t3)', textAlign: 'center', maxWidth: 90
+                }}>
+                  {isLDR ? 'Light sensors active' : 'Open-Meteo API'}
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                gap: 4, marginLeft: 'auto', flexShrink: 0
+              }}>
+                <div style={{
+                  fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
+                  color: 'var(--t3)', textTransform: 'uppercase'
+                }}>Data Source</div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', borderRadius: 999, fontWeight: 700,
+                  fontSize: '.78rem', letterSpacing: '.03em',
+                  background: 'linear-gradient(135deg, rgba(52,199,89,.18), rgba(52,199,89,.08))',
+                  border: '1.5px solid rgba(52,199,89,.45)',
+                  color: 'var(--green)',
+                  boxShadow: '0 2px 10px rgba(52,199,89,.15)',
+                }}>
+                  <span style={{ fontSize: '1rem' }}>☀️</span>
+                  <span>LDR Sensors</span>
+                </div>
+                <div style={{
+                  fontSize: '.62rem', color: 'var(--t3)', textAlign: 'center', maxWidth: 90
+                }}>Waiting for ESP32</div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="sliders-wrap" style={{display:"grid"}}>
@@ -293,13 +398,13 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
               </div>
               <input
                 type="range" id="xSlider"
-                min="0" max="90"
-                value={panelTilt}
-                style={{"--val": xPct + "%"}}
+                min="0" max="140"
+                value={Math.min(140, Math.max(0, panelTilt))}
+                style={{"--val": Math.min(100, Math.max(0, xPct)) + "%"}}
                 onChange={e => onSliderX(parseFloat(e.target.value))}
               />
               <div className="slc-ends">
-                <span>0° Flat</span><span>45° Mid</span><span>90° Vertical</span>
+                <span>0°</span><span>70°</span><span>140°</span>
               </div>
             </div>
             {/* Y Axis Slider */}
@@ -313,17 +418,17 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
               </div>
               <input
                 type="range" id="ySlider"
-                min="0" max="180"
-                value={Math.min(180, panelAzimuth)}
+                min="12" max="180"
+                value={Math.min(180, Math.max(12, panelAzimuth))}
                 className="az-slider"
                 style={{"--val": Math.min(100, Math.max(0, yPct)) + "%"}}
                 onChange={e => onSliderY(parseFloat(e.target.value))}
               />
               <div className="slc-ends">
-                <span>0°</span><span>90°</span><span>180°</span>
+                <span>12°</span><span>96°</span><span>180°</span>
               </div>
               <div className="dir-labels" style={{justifyContent: 'space-between', padding: '0 5px'}}>
-                <span>0°</span><span>45°</span><span>90°</span><span>135°</span><span>180°</span>
+                <span>12°</span><span>54°</span><span>96°</span><span>138°</span><span>180°</span>
               </div>
             </div>
           </div>
@@ -414,13 +519,37 @@ function WeatherWidget({ icon, temp, desc, humid, wind, feels, error, loading, o
 // ──────────────────────────────────────────
 
 function SunPositionWidget({ el, az, zenith }) {
+  const targetServoX = el > 0 ? Math.max(0, Math.min(140, el * 2)) : 0;
+  const targetServoY = Math.max(12, Math.min(180, az / 2));
+
   return (
     <div className="widget">
       <div className="w-icon">☀️</div>
       <div className="w-title">Sun Position</div>
       <div className="w-main">{el.toFixed(1)}°</div>
-      <div className="w-sub">Elevation above horizon</div>
-      <div className="w-row">
+      <div className="w-sub">Elevation (Azimuth: {az.toFixed(1)}°)</div>
+      
+      {/* Sleek Equivalent Target Servo display to explain alignment */}
+      <div style={{
+        marginTop: 10,
+        padding: '6px 10px',
+        borderRadius: 8,
+        background: 'rgba(255,159,10,0.08)',
+        border: '1px solid rgba(255,159,10,0.18)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4
+      }}>
+        <div style={{fontSize: '.62rem', color: 'var(--gold)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em'}}>
+          🎯 Target Servos
+        </div>
+        <div style={{display: 'flex', justifyContent: 'space-between', fontSize: '.78rem', color: 'var(--t1)'}}>
+          <span>Target X: <strong>{targetServoX.toFixed(1)}°</strong></span>
+          <span>Target Y: <strong>{targetServoY.toFixed(1)}°</strong></span>
+        </div>
+      </div>
+
+      <div className="w-row" style={{marginTop: 10}}>
         <WChip icon="🧭" value={az.toFixed(1)+"°"} />
         <WChip icon="📐" value={zenith.toFixed(1)+"°"} />
       </div>
@@ -440,8 +569,8 @@ function PanelStatusWidget({ efficiency, panelTilt, panelAzimuth }) {
       <div className="w-main">{efficiency}%</div>
       <div className="w-sub">Alignment Efficiency</div>
       <div className="w-row">
-        <WChip icon="↕" value={panelTilt.toFixed(1)+"°"} />
-        <WChip icon="↻" value={panelAzimuth.toFixed(1)+"°"} />
+        <WChip icon="↕" value={`Servo X: ${panelTilt.toFixed(1)}°`} />
+        <WChip icon="↻" value={`Servo Y: ${panelAzimuth.toFixed(1)}°`} />
       </div>
     </div>
   );
@@ -576,11 +705,11 @@ function DailyEnergyWidget({ dailyWh }) {
 
 function PanelVoltageWidget({ voltage, power, efficiency }) {
   // Simulate the Arduino analog sensor value (0–1023)
-  const simSensor = Math.round((voltage / (5.0 / 1023.0 * 3)));
-  const maxV = 14.96;
+  const simSensor = Math.round((voltage / 5.0) * 1023);
+  const maxV = 5.0;
   const fillPct = Math.min(100, (voltage / maxV) * 100);
-  const status = voltage < 1 ? 'Off / Night' : voltage < 4 ? 'Low Output' : voltage < 9 ? 'Charging' : 'Optimal';
-  const statusColor = voltage < 1 ? 'var(--t3)' : voltage < 4 ? 'var(--gold)' : voltage < 9 ? 'var(--accent)' : 'var(--green)';
+  const status = voltage < 0.3 ? 'Off / Night' : voltage < 1.5 ? 'Low Output' : voltage < 3.5 ? 'Charging' : 'Optimal';
+  const statusColor = voltage < 0.3 ? 'var(--t3)' : voltage < 1.5 ? 'var(--gold)' : voltage < 3.5 ? 'var(--accent)' : 'var(--green)';
 
   return (
     <div className="widget">
@@ -702,7 +831,7 @@ function WSPanel({ ip, onIpChange, status, onConnect, onDisconnect, lastSeen }) 
 // LDR WIDGET
 // ──────────────────────────────────────────
 
-function LDRWidget({ data }) {
+function LDRWidget({ data, trackingMode }) {
   const vals = data || { ldr_top:0, ldr_bottom:0, ldr_left:0, ldr_right:0 };
   const items = [
     { label:"Top",    val: vals.ldr_top    },
@@ -710,23 +839,62 @@ function LDRWidget({ data }) {
     { label:"Left",   val: vals.ldr_left   },
     { label:"Right",  val: vals.ldr_right  },
   ];
+  const isLDR = !trackingMode || trackingMode === "LDR";
+  const isSun = trackingMode === "SUN";
+  const hasData = !!data;
+
   return (
     <div className="widget ldr-widget">
       <div className="w-icon">☀️</div>
       <div className="w-title">LDR Sensors</div>
-      <div className="w-main" style={{fontSize:"1rem"}}>
-        {data ? "Live from ESP32" : "No ESP32 data"}
-      </div>
+
+      {/* Source badge — only when ESP32 is connected in auto mode */}
+      {hasData && trackingMode ? (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          padding: '3px 10px', borderRadius: 999, marginBottom: 6,
+          fontSize: '.72rem', fontWeight: 700, letterSpacing: '.04em',
+          background: isLDR
+            ? 'linear-gradient(135deg, rgba(52,199,89,.2), rgba(52,199,89,.08))'
+            : 'linear-gradient(135deg, rgba(255,159,10,.2), rgba(255,107,0,.08))',
+          border: isLDR
+            ? '1px solid rgba(52,199,89,.5)'
+            : '1px solid rgba(255,159,10,.5)',
+          color: isLDR ? 'var(--green)' : 'var(--gold)',
+          alignSelf: 'flex-start'
+        }}>
+          {isLDR ? '🟢 Tracking via LDR' : '🌐 Tracking via Sun API'}
+        </div>
+      ) : (
+        <div className="w-main" style={{fontSize:"1rem"}}>
+          {hasData ? "Live from ESP32" : "No ESP32 data"}
+        </div>
+      )}
+
+      {/* Subtle status line when Sun API is active */}
+      {hasData && isSun && (
+        <div style={{
+          fontSize: '.7rem', color: 'var(--t3)', marginBottom: 6,
+          fontStyle: 'italic'
+        }}>LDR diff &lt;50 — falling back to Open-Meteo sun position</div>
+      )}
+
       <div className="ldr-grid">
-        {items.map(it => (
-          <div key={it.label} className="ldr-item">
-            <div className="ldr-label">{it.label}</div>
-            <div className="ldr-value">{it.val}</div>
-            <div className="ldr-bar">
-              <div className="ldr-bar-fill" style={{width: Math.min(100, it.val / 1023 * 100).toFixed(1) + "%"}} />
+        {items.map(it => {
+          const maxVal = it.val > 1023 ? 4095 : 1023;
+          return (
+            <div key={it.label} className="ldr-item" style={{
+              opacity: (hasData && isSun) ? 0.5 : 1,
+              transition: 'opacity .3s'
+            }}>
+              <div className="ldr-label">{it.label}</div>
+              <div className="ldr-value">{it.val}</div>
+              <div className="ldr-bar">
+                <div className="ldr-bar-fill" style={{width: Math.min(100, it.val / maxVal * 100).toFixed(1) + "%"}} />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -885,7 +1053,7 @@ function HistoryCharts({ tick, theme }) {
       });
     };
 
-    if (powerRef.current) chartConf("Power (W)",        powers, "rgba(255,159,10,1)", powerRef, "power", 0, 10);
+    if (powerRef.current) chartConf("Power (W)",        powers, "rgba(255,159,10,1)", powerRef, "power", 0, 400);
     if (voltRef.current)  chartConf("Voltage (V)",      volts,  "rgba(0,122,255,1)",  voltRef,  "volt",  0, 6);
     if (tempRef.current)  chartConf("Temperature (°C)", temps,  "rgba(255,59,48,1)",  tempRef,  "temp",  20, 50);
   }, [tick, theme]);
@@ -1476,7 +1644,7 @@ function App() {
   const [sunPathD, setSunPathD] = useState("");
 
   // ── Panel
-  const [mode, setMode] = useState("auto");
+  const [mode, setMode] = useState("manual");
   const [panelTilt, setPanelTilt] = useState(0);
   const [panelAzimuth, setPanelAzimuth] = useState(180);
 
@@ -1527,6 +1695,11 @@ function App() {
   useEffect(() => { sunriseRef.current = sunrise; }, [sunrise]);
   useEffect(() => { sunsetRef.current = sunset; }, [sunset]);
   useEffect(() => { cloudRef.current = cloudCover; }, [cloudCover]);
+
+  const esp32DataRef = useRef(null);
+  const wsStatusRef = useRef("disconnected");
+  useEffect(() => { esp32DataRef.current = esp32Data; }, [esp32Data]);
+  useEffect(() => { wsStatusRef.current = wsStatus; }, [wsStatus]);
 
   // ── Load photo URL for navbar avatar + listen for live updates from ProfileModal
   useEffect(() => {
@@ -1624,15 +1797,39 @@ function App() {
       if (wsRef.current && wsRef.current.isConnected()) {
         // No mathematical override. The UI will receive position updates via esp32Data
       } else {
-        tilt = sp.el > 0 ? Math.max(0, 90 - sp.el) : 0;
-        az = sp.az;
-        if (az > 180) az = 180; 
+        // Calculate the physical target angles based on sun position
+        const targetPhysicalTilt = sp.el > 0 ? Math.max(0, 90 - sp.el) : 0;
+        const targetPhysicalAzimuth = sp.az;
+        
+        // Map physical target angles back to servo angles for state storage
+        tilt = Math.max(0, Math.min(140, (90 - targetPhysicalTilt) * 2));
+        az = Math.max(12, Math.min(180, targetPhysicalAzimuth / 2));
+        
         setPanelTilt(tilt);
         setPanelAzimuth(az);
       }
     }
 
-    const pwr = calcPower(sp.el, sp.az, tilt, az, cloudRef.current);
+    // Convert stored servo angles (or latest values) back to physical for power calculation
+    const physicalTilt = Math.max(0, Math.min(90, 90 - (tilt / 2)));
+    const physicalAzimuth = Math.max(0, Math.min(360, az * 2));
+    
+    // Calculate power: use real ESP32 voltage if connected, otherwise fallback to math simulation
+    const isConn = wsRef.current && wsRef.current.isConnected() && wsStatusRef.current === "connected";
+    const actualVoltage = (isConn && esp32DataRef.current) 
+      ? (esp32DataRef.current.solar_voltage !== undefined ? esp32DataRef.current.solar_voltage : (esp32DataRef.current.voltage || 0))
+      : null;
+      
+    let pwr = actualVoltage !== null 
+      ? Math.round(400 * Math.pow(Math.min(5.0, actualVoltage) / 5.0, 2))
+      : Math.round(calcPower(sp.el, sp.az, physicalTilt, physicalAzimuth, cloudRef.current));
+
+    // Apply 95-100% variation/jitter in simulation auto-mode when well-aligned
+    if (modeRef.current === "auto" && pwr > 360 && actualVoltage === null) {
+      const timeFactor = Math.sin(Date.now() / 3000) * 10 - 10;
+      pwr = Math.max(0, Math.round(pwr + timeFactor));
+    }
+
     const now2 = Date.now();
     const dt = (now2 - lastPwrRef.current) / 3600000;
     lastPwrRef.current = now2;
@@ -1645,6 +1842,42 @@ function App() {
     // Sun path
     const pathD = buildSunPathD(sunriseRef.current, sunsetRef.current, la, lo);
     setSunPathD(pathD);
+
+    // Update local history buffer only when NOT connected to physical ESP32
+    if (actualVoltage === null) {
+      const simVolt = (pwr / 400) * 5.0;
+      const baseTemp = 26.0;
+      const elevTemp = sp.el > 0 ? (sp.el / 90) * 8 : 0;
+      const simTemp = baseTemp + elevTemp + (Math.random() * 0.8 - 0.4);
+
+      HistoryBuffer.add({
+        time:        now.toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", hour12:false}),
+        power:       pwr,
+        voltage:     simVolt,
+        temperature: simTemp
+      });
+      setHistoryTick(t => t + 1);
+
+      // Append to simulated serial log
+      const tracking = sp.el > 0 ? "SUN (Sim)" : "NIGHT";
+      const modeStr = modeRef.current === "auto" ? "AUTO" : "MANUAL";
+      
+      const topVal = Math.round(Math.max(0, 1023 * (pwr / 400) + (Math.random() * 20 - 10)));
+      const botVal = Math.round(Math.max(0, topVal + (Math.random() * 10 - 5)));
+      const leftVal = Math.round(Math.max(0, topVal + (Math.random() * 10 - 5)));
+      const rightVal = Math.round(Math.max(0, topVal + (Math.random() * 10 - 5)));
+
+      const formattedText = `[Offline Sim] Mode:${modeStr} | Tracking:${tracking} | X:${tilt.toFixed(0)} Y:${az.toFixed(0)} | Top:${topVal} Bot:${botVal} L:${leftVal} R:${rightVal} | Volt: ${simVolt.toFixed(2)}V | Temp: ${simTemp.toFixed(1)}°C`;
+      
+      const line = {
+        time: now.toLocaleTimeString("en-IN", { hour12:false }),
+        text: formattedText
+      };
+      
+      const next = [...serialLogRef.current, line].slice(-20);
+      serialLogRef.current = next;
+      setSerialLog([...next]);
+    }
   }, []);
 
   useEffect(() => {
@@ -1656,54 +1889,56 @@ function App() {
   useEffect(() => {
     if (!esp32Data) return;
 
+    const activeServoTilt = esp32Data.tilt !== undefined ? Math.max(0, Math.min(140, esp32Data.tilt)) : panelTilt;
+    const activeServoAzimuth = esp32Data.azimuth !== undefined ? Math.max(12, Math.min(180, esp32Data.azimuth)) : panelAzimuth;
+    
+    // Convert to physical angles for calculations
+    const physicalTilt = Math.max(0, Math.min(90, 90 - (activeServoTilt / 2)));
+    const physicalAzimuth = Math.max(0, Math.min(360, activeServoAzimuth * 2));
+
+    // Calculate power: use real ESP32 voltage
+    const actualVoltage = esp32Data.solar_voltage !== undefined ? esp32Data.solar_voltage : (esp32Data.voltage || 0);
+    const pwr = Math.round(400 * Math.pow(Math.min(5.0, actualVoltage) / 5.0, 2));
+
     // Run alert checks against live sensor data
-    const pwr = calcPower(sunEl, sunAz, panelTilt, panelAzimuth, cloudCover);
     const newAlerts = checkAlerts({ ...esp32Data, power: pwr });
     setAlerts(newAlerts.filter(a => !dismissedAlerts.includes(a.msg)));
 
-    // Web-based Tracking Brain! Override the ESP32's internal tracking here to fix the Reverse Issue
-    if (modeRef.current === "auto") {
-      let { servo_tilt, servo_az, ldr_top, ldr_bottom, ldr_left, ldr_right } = esp32Data;
-      
-      const threshold = 100;
-      const step = 2;
+    // ── Update 3D panel display with live ESP32 servo angles
+    if (esp32Data.tilt !== undefined)    setPanelTilt(Math.max(0, Math.min(140, esp32Data.tilt)));
+    if (esp32Data.azimuth !== undefined) setPanelAzimuth(Math.max(12, Math.min(180, esp32Data.azimuth)));
 
-      // Vertical tracking (Tilt) — 🛠 FIX: Reversed Logic Applied
-      let diffV = ldr_top - ldr_bottom;
-      if (Math.abs(diffV) > threshold) {
-        if (diffV > 0) servo_tilt = Math.max(0, Math.min(180, servo_tilt - step)); // Fixed!
-        else           servo_tilt = Math.max(0, Math.min(180, servo_tilt + step)); // Fixed!
-      }
-
-      // Horizontal tracking (Azimuth)
-      let diffH = ldr_left - ldr_right;
-      if (Math.abs(diffH) > threshold) {
-        if (diffH > 0) servo_az = Math.max(0, Math.min(180, servo_az + step));
-        else           servo_az = Math.max(0, Math.min(180, servo_az - step));
-      }
-
-      setPanelTilt(servo_tilt);
-      setPanelAzimuth(servo_az);
-
-      // Force ESP32 motor to follow our fixed web-logic
-      if (wsRef.current && wsRef.current.isConnected()) {
-        wsRef.current.sendCommand(servo_tilt, servo_az);
-      }
-    }
+    // Auto tracking is FROZEN — no web-brain commands sent to ESP32.
 
     // Push to circular history buffer and nudge chart re-render
     HistoryBuffer.add({
       time:        new Date().toLocaleTimeString("en-IN", {hour:"2-digit", minute:"2-digit", hour12:false}),
       power:       pwr,
-      voltage:     esp32Data.voltage,
-      temperature: esp32Data.temperature
+      voltage:     esp32Data.solar_voltage !== undefined ? esp32Data.solar_voltage : (esp32Data.voltage || 0),
+      temperature: esp32Data.temperature || 0
     });
     setHistoryTick(t => t + 1);
 
-    // Append to serial log (keep last 20)
+    // Append formatted line matching the exact Arduino IDE print statement to the serial log
+    const tracking = esp32Data.tracking_mode || (esp32Data.ldr_top !== undefined ? "LDR" : "SUN");
+    const modeStr = (esp32Data.autoMode !== undefined) 
+      ? (esp32Data.autoMode ? "AUTO" : "MANUAL")
+      : (modeRef.current === "auto" ? "AUTO" : "MANUAL");
+    
+    const tiltVal = esp32Data.tilt !== undefined ? esp32Data.tilt : panelTilt;
+    const azVal = esp32Data.azimuth !== undefined ? esp32Data.azimuth : panelAzimuth;
+    const voltVal = esp32Data.solar_voltage !== undefined ? esp32Data.solar_voltage : (esp32Data.voltage || 0);
+    const tempVal = esp32Data.temperature || 0;
+    const topVal = esp32Data.ldr_top !== undefined ? esp32Data.ldr_top : 0;
+    const botVal = esp32Data.ldr_bottom !== undefined ? esp32Data.ldr_bottom : 0;
+    const leftVal = esp32Data.ldr_left !== undefined ? esp32Data.ldr_left : 0;
+    const rightVal = esp32Data.ldr_right !== undefined ? esp32Data.ldr_right : 0;
+
+    const formattedText = `Mode:${modeStr} | Tracking:${tracking} | X:${tiltVal} Y:${azVal} | Top:${topVal} Bot:${botVal} L:${leftVal} R:${rightVal} | Volt: ${voltVal.toFixed(2)}V | Temp: ${tempVal.toFixed(1)}°C`;
+
     const line = {
       time: new Date().toLocaleTimeString("en-IN", { hour12:false }),
-      text: JSON.stringify(esp32Data)
+      text: formattedText
     };
     const next = [...serialLogRef.current, line].slice(-20);
     serialLogRef.current = next;
@@ -1848,29 +2083,50 @@ function App() {
   };
 
   const handleModeChange = (m) => {
-    setMode(m);
-    modeRef.current = m;
-    showToast(m==="auto"?"🤖":"🎛", m==="auto"?"Auto tracking enabled":"Manual control active");
-    
-    // Command the ESP32 to switch its internal mode
-    if (wsRef.current && wsRef.current.isConnected()) {
-      // By sending a 'move' command, we force the ESP32 into manual mode (mode=1).
-      // This allows our Web Dashboard to act as the Auto-Tracking Brain and fix the reverse motor issue!
-      if (m === "auto") wsRef.current.sendCommand(panelTilt, panelAzimuth);
+    if (m === "auto") {
+      setMode("auto");
+      modeRef.current = "auto";
+      // Send auto command to ESP32 if connected
+      if (wsRef.current && wsRef.current.isConnected()) {
+        wsRef.current.sendAutoMode();
+      }
+      showToast("⚡", "Auto tracking enabled — ESP32 will use LDR or Sun API");
+      // Trigger doUpdate instantly to align the panel
+      setTimeout(doUpdate, 0);
+    } else {
+      setMode("manual");
+      modeRef.current = "manual";
+      showToast("🎛", "Manual control active");
     }
   };
 
   // ── Derived values
-  const power = calcPower(sunEl, sunAz, panelTilt, panelAzimuth, cloudCover);
+  const physicalTilt = Math.max(0, Math.min(90, 90 - (panelTilt / 2)));
+  const physicalAzimuth = Math.max(0, Math.min(360, panelAzimuth * 2));
+  
+  const isConn = wsStatus === "connected" && esp32Data;
+  const actualVoltage = isConn
+    ? (esp32Data.solar_voltage !== undefined ? esp32Data.solar_voltage : (esp32Data.voltage || 0))
+    : null;
+    
+  const rawPower = Math.round(calcPower(sunEl, sunAz, physicalTilt, physicalAzimuth, cloudCover));
+  // Apply 95-100% variation/jitter in simulation auto-mode when well-aligned
+  const simPower = (mode === "auto" && rawPower > 360 && actualVoltage === null)
+    ? Math.max(0, Math.round(rawPower + (Math.sin(Date.now() / 3000) * 10 - 10)))
+    : rawPower;
+
+  const power = actualVoltage !== null 
+    ? Math.round(400 * Math.pow(Math.min(5.0, actualVoltage) / 5.0, 2))
+    : simPower;
+    
   const efficiency = calcEfficiency(power);
   const uv = calcUV(sunEl, cloudCover);
 
-  // Voltage: use real ESP32 reading when connected, else simulate Arduino ADC formula
-  // Arduino formula: voltage = analogRead(A0) * (5.0/1023.0) * 3
-  const simSensor   = Math.round((power / 400) * 1023);
-  const panelVoltage = (esp32Data && wsStatus === "connected")
-    ? esp32Data.voltage
-    : simSensor * (5.0 / 1023.0) * 3;
+  // Voltage: use real ESP32 reading when connected (Arduino sends "solar_voltage" key)
+  // Fallback: simulate voltage from 0 to 5 V
+  const panelVoltage = actualVoltage !== null
+    ? actualVoltage
+    : (power / 400) * 5.0;
 
   // Real panel temperature from ESP32 (null when not connected)
   const realTemp = (esp32Data && wsStatus === "connected") ? esp32Data.temperature : null;
@@ -1959,6 +2215,8 @@ function App() {
             panelTilt={panelTilt}
             panelAzimuth={panelAzimuth}
             onModeChange={handleModeChange}
+            trackingMode={esp32Data?.tracking_mode || null}
+            wsStatus={wsStatus}
             onSliderX={v => {
               setPanelTilt(v);
               if (wsRef.current && wsRef.current.isConnected()) {
@@ -2002,7 +2260,7 @@ function App() {
               <EnvironmentWidget uv={uv} uvDescription={uvDesc(uv)+" — "+(uv>=6?"Use protection!":"Safe levels")} cloud={cloudCover} humid={humid} pressure={pressure} />
               <DailyEnergyWidget dailyWh={dailyWh} />
               {/* LDR quad-grid (live from ESP32) */}
-              <LDRWidget data={esp32Data} />
+              <LDRWidget data={esp32Data} trackingMode={esp32Data?.tracking_mode || null} />
               {/* Serial monitor — last 20 ESP32 JSON frames */}
               <SerialMonitor
                 log={serialLog}

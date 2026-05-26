@@ -19,8 +19,8 @@
   --sh-m: 0 8px 36px rgba(0, 0, 0, 0.12);
   --sh-l: 0 20px 60px rgba(0, 0, 0, 0.18);
   --font-display: "Josefin Sans", sans-serif;
-  --font-body: "Datatype", monospace;
-  --font-mono: "Datatype", monospace;
+  --font-body: "Roboto Mono", monospace;
+  --font-mono: "Roboto Mono", monospace;
 }
 
 [data-theme="dark"] {

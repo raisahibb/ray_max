@@ -8,28 +8,26 @@
   <!-- Google Fonts: Datatype + Josefin Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Datatype:wght@100..900&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="/auth/auth.css" />
 
   <!-- Firebase Compat SDKs -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
+  <!-- Load Firebase config (ignored in git to protect credentials) -->
+  <script src="../config.js"></script>
+
   <!-- Firebase Initialization -->
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDmF5Daj9wVqykkMMjvRktLMpfkt1LxY9k",
-      authDomain: "ray-max.firebaseapp.com",
-      databaseURL: "https://ray-max-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "ray-max",
-      storageBucket: "ray-max.firebasestorage.app",
-      messagingSenderId: "835150029706",
-      appId: "1:835150029706:web:1fd20c6e3fe905c3141e73"
-    };
-    firebase.initializeApp(firebaseConfig);
+    if (window.firebaseConfig) {
+      firebase.initializeApp(window.firebaseConfig);
+    } else {
+      console.error("Firebase config missing! Please create config.js in root using config.example.js as template.");
+    }
     window.auth = firebase.auth();
     window.db = firebase.firestore();
   </script>
@@ -44,6 +42,6 @@
   <div id="recaptcha-container"></div>
 
   <!-- Auth App -->
-  <script type="text/babel" src="auth.jsx"></script>
+  <script type="text/babel" src="/auth/auth.jsx"></script>
 </body>
 </html>
