@@ -97,7 +97,7 @@ Copy and upload the following code to your ESP32 using the Arduino IDE. Make sur
 #include <ESP32Servo.h>
 #include <HTTPClient.h>
 
-// ================== PIN DEFINITIONS ==================
+// ================== PINS ==================
 #define LDR_TOP     34
 #define LDR_BOTTOM  35
 #define LDR_LEFT    32
@@ -106,236 +106,291 @@ Copy and upload the following code to your ESP32 using the Arduino IDE. Make sur
 #define SERVO_X     18
 #define SERVO_Y     19
 
-// ================== OBJECTS ==================
 Servo servoX;
 Servo servoY;
 WebSocketsServer webSocket = WebSocketsServer(81);
 
+// ================== VARIABLES ==================
 int angleX = 90;
 int angleY = 90;
-bool autoMode = true; // Starts in Auto Track mode automatically
+bool autoMode = false;
 
-// Replace with your Network Credentials
-const char* ssid = "Gourav's Galaxy A31";
-const char* password = "12345678";
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
 
+// SUN DATA
+float latitude = 0, longitude = 0;
+float azimuth = 0, elevation = 0;
+bool locationFetched = false;
+
+String trackingMode = "MANUAL";
+
+// TIMERS
 unsigned long lastRead = 0;
 unsigned long lastPrint = 0;
 
-// ===== SUN TRACKING VARS =====
-float latitude = 0;
-float longitude = 0;
-float azimuth = 0;
-float elevation = 0;
-bool locationFetched = false;
+// AVG STORAGE
+long sumTop = 0, sumBottom = 0, sumLeft = 0, sumRight = 0;
+int count = 0;
 
-String trackingMode = "LDR";
-
-// LDR variables for telemetry
-int topVal = 0;
-int bottomVal = 0;
-int leftVal = 0;
-int rightVal = 0;
+// Current LDR values for Web Dashboard
+int currentTop = 0, currentBottom = 0, currentLeft = 0, currentRight = 0;
 
 // ================== FUNCTIONS ==================
 
 int readLDR(int pin) {
   long sum = 0;
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 5; i++) {
     sum += analogRead(pin);
-    delayMicroseconds(100);
+    delayMicroseconds(300);
   }
-  return sum / 8;
+  return sum / 5;
 }
 
 float readSolarVoltage() {
-  long sum = 0;
-  for (int i = 0; i < 10; i++) {
-    sum += analogRead(SOLAR_PIN);
-    delayMicroseconds(100);
-  }
-  float avgRaw = sum / 10.0;
-  float vPin = (avgRaw * 3.3) / 4095.0;
-  return vPin * (14.7 / 4.7); // Voltage divider ratio (R1=10k, R2=4.7k)
+  int raw = analogRead(SOLAR_PIN);
+  float v = raw * (3.3 / 4095.0);
+  return v * (14.7 / 4.7);
 }
 
+// LOCATION
 void getLocation() {
   HTTPClient http;
   http.begin("http://ip-api.com/json");
 
   if (http.GET() == 200) {
-    StaticJsonDocument<500> doc;
+    StaticJsonDocument<300> doc;
     deserializeJson(doc, http.getString());
 
     latitude = doc["lat"];
     longitude = doc["lon"];
     locationFetched = true;
-    Serial.println("📍 Geolocation fetched successfully!");
-  } else {
-    Serial.println("⚠️ Geolocation API failed");
+    Serial.println("📍 Location fetched");
   }
   http.end();
 }
 
+// SUN POSITION
 void getSunPosition() {
-  if (!locationFetched) return;
-  // Dashboard handles astronomical calculations and overrides servo positions if necessary
+  String url = "https://api.open-meteo.com/v1/forecast?latitude=" +
+               String(latitude) +
+               "&longitude=" + String(longitude) +
+               "&hourly=solar_elevation,solar_azimuth";
+
+  HTTPClient http;
+  http.begin(url);
+
+  if (http.GET() == 200) {
+    StaticJsonDocument<2000> doc;
+    deserializeJson(doc, http.getString());
+
+    azimuth = doc["hourly"]["solar_azimuth"][0];
+    elevation = doc["hourly"]["solar_elevation"][0];
+  }
+  http.end();
 }
 
 void moveFromSun() {
-  // Translate celestial coordinates to servo angles inside hardware safety range
-  int targetX = constrain(elevation * 2, 0, 140);
-  int targetY = constrain(azimuth / 2, 12, 180);
-  
-  angleX = targetX;
-  angleY = targetY;
+  angleY = map(azimuth, 0, 360, 0, 180);
+  angleX = map(elevation, 0, 90, 0, 140);
+
+  angleX = constrain(angleX, 0, 140);
+  angleY = constrain(angleY, 10, 180);
+
   servoX.write(angleX);
   servoY.write(angleY);
 }
 
-// ===== WEBSOCKET RECEIVER =====
+// WEBSOCKET EVENT HANDLER (Receives commands from Website)
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   if (type == WStype_TEXT) {
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<200> doc;
     DeserializationError error = deserializeJson(doc, payload);
     if (error) return;
     
     String cmd = doc["cmd"];
     if (cmd == "auto") {
       autoMode = true;
-      Serial.println("⚡ Auto Mode enabled via WebSocket");
+      trackingMode = "AUTO";
+      Serial.println("AUTO MODE ON (via Web)");
     } else if (cmd == "move") {
       autoMode = false;
+      trackingMode = "MANUAL";
       int t = doc["tilt"];
       int a = doc["azimuth"];
       
-      // Restrict sliders movements to hardware safety boundaries
       angleX = constrain(t, 0, 140);
-      angleY = constrain(a, 12, 180);
+      angleY = constrain(a, 10, 180);
       
       servoX.write(angleX);
       servoY.write(angleY);
-      Serial.printf("🎛 Manual move via WebSocket: X=%d, Y=%d\n", angleX, angleY);
+      Serial.printf("Manual Move (via Web) → X:%d Y:%d\n", angleX, angleY);
     }
   }
 }
 
+// ================== SETUP ==================
 void setup() {
   Serial.begin(115200);
-  
+
   servoX.attach(SERVO_X);
   servoY.attach(SERVO_Y);
-  
-  // Safe bounds lock
-  angleX = constrain(angleX, 0, 140);
-  angleY = constrain(angleY, 12, 180);
+
   servoX.write(angleX);
   servoY.write(angleY);
 
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi Connected!");
-  Serial.print("IP Address: ");
+
+  Serial.println("\n✅ WiFi Connected");
   Serial.println(WiFi.localIP());
 
-  webSocket.begin();
+  // Attach WebSocket event handler and start
   webSocket.onEvent(webSocketEvent);
+  webSocket.begin();
 
   getLocation();
+
   Serial.println("🚀 SYSTEM READY");
+  Serial.println("Commands: manual | auto | X,Y");
 }
 
+// ================== LOOP ==================
 void loop() {
   webSocket.loop();
-  unsigned long currentMillis = millis();
 
-  // ===== AUTO TRACKING CYCLE =====
-  if (autoMode && (currentMillis - lastRead >= 5000)) {
-    long sumTop = 0, sumBottom = 0, sumLeft = 0, sumRight = 0;
-    const int numSamples = 10;
-    
-    for (int i = 0; i < numSamples; i++) {
-      sumTop += readLDR(LDR_TOP);
-      sumBottom += readLDR(LDR_BOTTOM);
-      sumLeft += readLDR(LDR_LEFT);
-      sumRight += readLDR(LDR_RIGHT);
-      delay(5); // Non-blocking minimal delay
+  // ===== MANUAL + MODE CONTROL (Serial) =====
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+
+    if (input == "auto") {
+      autoMode = true;
+      trackingMode = "AUTO";
+      Serial.println("AUTO MODE ON");
     }
-
-    topVal = sumTop / numSamples;
-    bottomVal = sumBottom / numSamples;
-    leftVal = sumLeft / numSamples;
-    rightVal = sumRight / numSamples;
-
-    bool ldrFail = false;
-    if (abs(topVal - bottomVal) < 50 && abs(leftVal - rightVal) < 50) {
-      ldrFail = true;
+    else if (input == "manual") {
+      autoMode = false;
+      trackingMode = "MANUAL";
+      Serial.println("MANUAL MODE ON");
     }
+    else if (input.indexOf(',') > 0 && !autoMode) {
+      int comma = input.indexOf(',');
+      int x = input.substring(0, comma).toInt();
+      int y = input.substring(comma + 1).toInt();
 
-    if (!ldrFail) {
-      // ===== LDR ALIGNMENT =====
-      int threshold = 80;
-      int step = 2; // Smooth tracking increments
-
-      if (topVal - bottomVal > threshold)
-        angleX = constrain(angleX - step, 0, 140);
-      else if (bottomVal - topVal > threshold)
-        angleX = constrain(angleX + step, 0, 140);
-
-      if (leftVal - rightVal > threshold)
-        angleY = constrain(angleY - step, 12, 180);
-      else if (rightVal - leftVal > threshold)
-        angleY = constrain(angleY + step, 12, 180);
+      angleX = constrain(x, 0, 140);
+      angleY = constrain(y, 10, 180);
 
       servoX.write(angleX);
       servoY.write(angleY);
 
-      trackingMode = "LDR";
-    } else {
-      // ===== SUN API ALIGNMENT =====
-      if (locationFetched) {
-        getSunPosition();
-        moveFromSun();
-        trackingMode = "SUN";
-      }
+      Serial.printf("Manual Move → X:%d Y:%d\n", angleX, angleY);
     }
-    lastRead = currentMillis;
   }
 
-  // ===== TELEMETRY TRANSMISSION (1 Hz) =====
-  if (currentMillis - lastPrint >= 1000) {
-    float volt = readSolarVoltage();
-    float temp = 28.5 + random(-10, 10) / 10.0; // Simulated board temp
+  // ===== AUTO TRACKING =====
+  if (autoMode && millis() - lastRead >= 200) {
+    // Store current readings for live dashboard
+    currentTop = readLDR(LDR_TOP);
+    currentBottom = readLDR(LDR_BOTTOM);
+    currentLeft = readLDR(LDR_LEFT);
+    currentRight = readLDR(LDR_RIGHT);
 
-    // Send telemetry to WebSocket dashboard clients
-    StaticJsonDocument<256> telemetryDoc;
-    telemetryDoc["ldr_top"] = topVal;
-    telemetryDoc["ldr_bottom"] = bottomVal;
-    telemetryDoc["ldr_left"] = leftVal;
-    telemetryDoc["ldr_right"] = rightVal;
-    telemetryDoc["solar_voltage"] = volt;
-    telemetryDoc["temperature"] = temp;
-    telemetryDoc["tilt"] = angleX;
-    telemetryDoc["azimuth"] = angleY;
-    telemetryDoc["tracking_mode"] = trackingMode;
+    sumTop += currentTop;
+    sumBottom += currentBottom;
+    sumLeft += currentLeft;
+    sumRight += currentRight;
+
+    count++;
+
+    if (count >= 50) {
+      int top = sumTop / count;
+      int bottom = sumBottom / count;
+      int left = sumLeft / count;
+      int right = sumRight / count;
+
+      bool ldrFail = false;
+
+      if (abs(top - bottom) < 50 && abs(left - right) < 50) {
+        ldrFail = true;
+      }
+
+      if (!ldrFail) {
+        // ===== LDR MODE =====
+        int threshold = 80;
+        int step = 8;
+
+        if (top > bottom + threshold) angleX -= step;
+        else if (bottom > top + threshold) angleX += step;
+
+        if (left > right + threshold) angleY -= step;
+        else if (right > left + threshold) angleY += step;
+
+        angleX = constrain(angleX, 0, 140);
+        angleY = constrain(angleY, 10, 180);
+
+        servoX.write(angleX);
+        servoY.write(angleY);
+
+        trackingMode = "LDR";
+
+      } else {
+        // ===== SUN MODE =====
+        if (locationFetched) {
+          getSunPosition();
+          moveFromSun();
+          trackingMode = "SUN";
+        }
+      }
+
+      sumTop = sumBottom = sumLeft = sumRight = 0;
+      count = 0;
+    }
+
+    lastRead = millis();
+  }
+
+  // ===== TELEMETRY TRANSMISSION (Sends to Website) =====
+  if (millis() - lastPrint >= 1000) {
+    float volt = readSolarVoltage();
+    
+    // Ensure live values even in manual mode
+    if (!autoMode) {
+        currentTop = readLDR(LDR_TOP);
+        currentBottom = readLDR(LDR_BOTTOM);
+        currentLeft = readLDR(LDR_LEFT);
+        currentRight = readLDR(LDR_RIGHT);
+    }
+
+    // 1. Send data to Website via WebSocket
+    StaticJsonDocument<256> doc;
+    doc["ldr_top"] = currentTop;
+    doc["ldr_bottom"] = currentBottom;
+    doc["ldr_left"] = currentLeft;
+    doc["ldr_right"] = currentRight;
+    doc["solar_voltage"] = volt;
+    doc["temperature"] = 28.5 + random(-10, 10) / 10.0; // Simulated board temp
+    doc["tilt"] = angleX;
+    doc["azimuth"] = angleY;
+    doc["tracking_mode"] = trackingMode;
 
     String payload;
-    serializeJson(telemetryDoc, payload);
+    serializeJson(doc, payload);
     webSocket.broadcastTXT(payload);
 
-    // Formatted print matching web serial console
-    Serial.printf("Mode:%s | Tracking:%s | X:%d Y:%d | Top:%d Bot:%d L:%d R:%d | Volt: %.2f | Temp: %.1f\n",
+    // 2. Print to Serial Monitor
+    Serial.printf("Mode:%s | Track:%s | X:%d Y:%d | Volt:%.2f\n",
                   autoMode ? "AUTO" : "MANUAL",
                   trackingMode.c_str(),
                   angleX, angleY,
-                  topVal, bottomVal, leftVal, rightVal,
-                  volt, temp);
-
-    lastPrint = currentMillis;
+                  volt);
+                  
+    lastPrint = millis();
   }
 }
 ```
