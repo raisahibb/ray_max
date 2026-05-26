@@ -245,7 +245,7 @@ function PhoneSignInView({
       }, {
         merge: true
       });
-      window.location.href = '../index.html';
+      window.location.href = '../';
     }
   }
 
@@ -462,7 +462,7 @@ function MobileSignInView({
         mobile: docData.mobile,
         loginMethod: 'mobile'
       }));
-      window.location.href = '../index.html';
+      window.location.href = '../';
     } catch (err) {
       setError(err.message);
     } finally {
@@ -619,7 +619,7 @@ function MobileSignUpView({
     }, "You're all set. Welcome to RAYMAX!"), /*#__PURE__*/React.createElement("button", {
       className: "auth-btn",
       onClick: () => {
-        window.location.href = '../index.html';
+        window.location.href = '../';
       }
     }, "Go to Dashboard \u2192"));
   }
@@ -771,7 +771,7 @@ function SignInView() {
     setLoading(true);
     try {
       await window.auth.signInWithEmailAndPassword(email, password);
-      window.location.href = '../index.html';
+      window.location.href = '../';
     } catch (e) {
       setError(e.message);
     } finally {
@@ -1162,7 +1162,7 @@ function SignUpView() {
     id: "go-to-dashboard-btn",
     className: "auth-btn",
     onClick: () => {
-      window.location.href = '../index.html';
+      window.location.href = '../';
     }
   }, "Go to Dashboard \u2192"))));
 }
@@ -1186,7 +1186,7 @@ function App() {
   useEffect(() => {
     const unsubscribe = window.auth.onAuthStateChanged(user => {
       if (user && user.emailVerified) {
-        window.location.href = '../index.html';
+        window.location.href = '../';
       }
     });
     return () => unsubscribe();

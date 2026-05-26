@@ -110,7 +110,7 @@ function Navbar({ clock, date, locPill, theme, onToggleTheme, currentUser, onPro
             onClick={async () => {
               localStorage.removeItem('raymax-mobile-user');
               try { await window.auth.signOut(); } catch (_) {}
-              window.location.href = './auth/index.html';
+              window.location.href = './auth/';
             }}
           >🚪</button>
         </div>
@@ -1539,7 +1539,7 @@ function App() {
     // ── Reusable redirect helper
     function deny() {
       localStorage.removeItem('raymax-mobile-user');
-      window.location.href = './auth/index.html';
+      window.location.href = './auth/';
     }
 
     // ── Step 1: Subscribe to Firebase Auth (handles Email users)

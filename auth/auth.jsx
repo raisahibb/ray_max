@@ -198,7 +198,7 @@ function PhoneSignInView({ onBack }) {
         lastLogin:   firebase.firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
 
-      window.location.href = '../index.html';
+      window.location.href = '../';
     }
   }
 
@@ -397,7 +397,7 @@ function MobileSignInView({ onSwitchToEmail }) {
         loginMethod: 'mobile',
       }));
 
-      window.location.href = '../index.html';
+      window.location.href = '../';
     } catch (err) {
       setError(err.message);
     } finally {
@@ -515,7 +515,7 @@ function MobileSignUpView({ onSwitchToEmail }) {
         <p style={{ fontSize: '.88rem', color: '#9097b8', marginBottom: 24 }}>
           You're all set. Welcome to RAYMAX!
         </p>
-        <button className="auth-btn" onClick={() => { window.location.href = '../index.html'; }}>
+        <button className="auth-btn" onClick={() => { window.location.href = '../'; }}>
           Go to Dashboard →
         </button>
       </div>
@@ -624,7 +624,7 @@ function SignInView() {
     setLoading(true);
     try {
       await window.auth.signInWithEmailAndPassword(email, password);
-      window.location.href = '../index.html';
+      window.location.href = '../';
     } catch (e) {
       setError(e.message);
     } finally {
@@ -930,7 +930,7 @@ function SignUpView() {
                 Your account is ready. Start tracking solar energy.
               </p>
               <button id="go-to-dashboard-btn" className="auth-btn"
-                      onClick={() => { window.location.href = '../index.html'; }}>
+                      onClick={() => { window.location.href = '../'; }}>
                 Go to Dashboard →
               </button>
             </div>
@@ -960,7 +960,7 @@ function App() {
   useEffect(() => {
     const unsubscribe = window.auth.onAuthStateChanged(user => {
       if (user && user.emailVerified) {
-        window.location.href = '../index.html';
+        window.location.href = '../';
       }
     });
     return () => unsubscribe();

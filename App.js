@@ -130,7 +130,7 @@ function Navbar({
       try {
         await window.auth.signOut();
       } catch (_) {}
-      window.location.href = './auth/index.html';
+      window.location.href = './auth/';
     }
   }, "\uD83D\uDEAA"))), /*#__PURE__*/React.createElement("div", {
     className: "nav-side-cluster"
@@ -2187,7 +2187,7 @@ function App() {
     // ── Reusable redirect helper
     function deny() {
       localStorage.removeItem('raymax-mobile-user');
-      window.location.href = './auth/index.html';
+      window.location.href = './auth/';
     }
 
     // ── Step 1: Subscribe to Firebase Auth (handles Email users)
