@@ -13,6 +13,9 @@
   [![Firebase](https://img.shields.io/badge/Firebase-Auth/Firestore-FFCA28?style=flat-square&logo=firebase)](#)
   [![ESP32](https://img.shields.io/badge/ESP32-WebSocket%20Host-222222?style=flat-square&logo=express)](#)
   [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](#)
+
+  <br />
+  <h3>🌐 <a href="https://raymax.web.app" target="_blank">Live Web Dashboard Demo</a></h3>
 </div>
 
 ---
@@ -339,6 +342,9 @@ void loop() {
 ---
 
 ## 🌐 Software Setup
+
+> [!NOTE]
+> The project is pre-configured and deployed on Firebase Hosting! You can view the live dashboard immediately by visiting **[https://raymax.web.app](https://raymax.web.app)**. If you wish to host your own database instance, follow the steps below.
 
 ### 1. Firebase Project Configuration
 Create a project on the [Firebase Console](https://console.firebase.google.com/) and copy the web configuration parameters.
