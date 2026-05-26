@@ -4,7 +4,8 @@
   "description": "> **Real-time solar panel tracking with GPS, live weather, robust authentication, ESP32 WebSocket integration, and 3D visualization running in a seamless glassmorphism React application.**",
   "main": "script.js",
   "scripts": {
-    "dev": "serve .",
+    "build": "babel App.jsx -o App.js --presets=@babel/preset-react && babel auth/auth.jsx -o auth/auth.js --presets=@babel/preset-react",
+    "dev": "npm run build && serve .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -19,6 +20,9 @@
   },
   "homepage": "https://github.com/raisahibb/ray_max#readme",
   "devDependencies": {
+    "@babel/cli": "^7.29.7",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-react": "^7.29.7",
     "serve": "^14.2.6"
   }
 }

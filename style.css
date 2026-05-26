@@ -2292,6 +2292,23 @@ input[type=range]::-webkit-slider-thumb:hover {
   margin-bottom: 16px;
   text-align: center;
 }
+.aib-badge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.pm-linked-value {
+  font-size: .72rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 200px;
+  min-width: 0;
+}
 
 /* ──────────────────────────────────────────
    MOBILE RESPONSIVENESS AND POLISH
@@ -2300,7 +2317,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 /* Navbar and overall layout for tablets/phones */
 @media (max-width: 768px) {
   body {
-    padding-top: 100px;
+    padding-top: 130px; /* Increased to clear floating tall mobile navbar */
   }
   .navbar {
     top: 12px;
@@ -2337,7 +2354,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   }
 
   .alert-bar {
-    top: 72px; /* 12 + ~52 pill height + 8 gap */
+    top: 112px; /* Adjusted to clear the floating tall mobile navbar bottom (~102px) */
     width: max-content;
     max-width: calc(100% - 24px);
     padding: 6px 16px;
@@ -2369,8 +2386,22 @@ input[type=range]::-webkit-slider-thumb:hover {
     justify-content: center;
   }
   .auto-info-box {
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
     padding: 12px 14px;
+  }
+  .aib-badge-wrap {
+    margin-left: 0;
+    align-items: flex-start;
+    margin-top: 4px;
+  }
+  .pm-linked-value {
+    max-width: 120px;
+  }
+  .profile-modal {
+    padding: 20px 16px 24px;
+    border-radius: 20px;
   }
 }
 

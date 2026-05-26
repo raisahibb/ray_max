@@ -287,24 +287,23 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
 
         {mode === "auto" ? (
           <div className="auto-info-box">
-            <div className="aib-icon" style={{fontSize:'1.5rem'}}>⚡</div>
-            <div style={{flex:1}}>
-              <div className="aib-title">Auto Tracking Active</div>
-              <div className="aib-sub">
-                {!isConnected
-                  ? "ESP32 disconnected — simulating auto-tracking using local coordinates and Sun API."
-                  : trackingMode === "SUN"
-                    ? "LDR sensors inactive — panel is following sun position via Open-Meteo API."
-                    : "LDR sensors are guiding the panel toward the brightest light source."
-                }
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, flex: 1, minWidth: 0 }}>
+              <div className="aib-icon" style={{fontSize:'1.5rem', flexShrink: 0}}>⚡</div>
+              <div style={{flex:1, minWidth: 0}}>
+                <div className="aib-title">Auto Tracking Active</div>
+                <div className="aib-sub">
+                  {!isConnected
+                    ? "ESP32 disconnected — simulating auto-tracking using local coordinates and Sun API."
+                    : trackingMode === "SUN"
+                      ? "LDR sensors inactive — panel is following sun position via Open-Meteo API."
+                      : "LDR sensors are guiding the panel toward the brightest light source."
+                  }
+                </div>
               </div>
             </div>
             {/* ── Tracking Source Badge ── */}
             {!isConnected ? (
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 4, marginLeft: 'auto', flexShrink: 0
-              }}>
+              <div className="aib-badge-wrap">
                 <div style={{
                   fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
                   color: 'var(--t3)', textTransform: 'uppercase'
@@ -326,10 +325,7 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
                 }}>Open-Meteo</div>
               </div>
             ) : trackingMode ? (
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 4, marginLeft: 'auto', flexShrink: 0
-              }}>
+              <div className="aib-badge-wrap">
                 <div style={{
                   fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
                   color: 'var(--t3)', textTransform: 'uppercase'
@@ -359,10 +355,7 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
                 </div>
               </div>
             ) : (
-              <div style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 4, marginLeft: 'auto', flexShrink: 0
-              }}>
+              <div className="aib-badge-wrap">
                 <div style={{
                   fontSize: '.65rem', fontWeight: 700, letterSpacing: '.06em',
                   color: 'var(--t3)', textTransform: 'uppercase'
@@ -1262,14 +1255,25 @@ function ProfileModal({ isOpen, onClose, currentUser }) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '10px 14px', borderRadius: 14, marginBottom: 10,
         background: value ? 'rgba(52,199,89,.08)' : 'rgba(0,0,0,.04)',
-        border: `1px solid ${value ? 'rgba(52,199,89,.25)' : 'var(--border-m)'}`
+        border: `1px solid ${value ? 'rgba(52,199,89,.25)' : 'var(--border-m)'}`,
+        minWidth: 0
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: '1.2rem' }}>{icon}</span>
-          <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+          <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{icon}</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: '.78rem', fontWeight: 700, color: 'var(--t2)' }}>{label}</div>
-            <div style={{ fontSize: '.72rem', color: value ? 'var(--green)' : 'var(--t3)' }}>
-              {value || 'Not linked'}
+            <div 
+              className="pm-linked-value"
+              style={{ color: value ? 'var(--green)' : 'var(--t3)' }}
+              title={value}
+            >
+              {value && value.length > 16 ? (
+                <marquee scrollamount="2" behavior="scroll" direction="left" style={{ width: '100%', display: 'inline-block', verticalAlign: 'bottom' }}>
+                  {value}
+                </marquee>
+              ) : (
+                value || 'Not linked'
+              )}
             </div>
           </div>
         </div>
@@ -1321,13 +1325,9 @@ function ProfileModal({ isOpen, onClose, currentUser }) {
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="profile-modal"
         style={{
-          position: 'relative', width: '100%', maxWidth: 460,
-          maxHeight: '90vh', overflowY: 'auto', margin: 'auto',
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 28, padding: 32,
-          boxShadow: 'var(--sh-l)'
+          maxHeight: '90vh', overflowY: 'auto', margin: 'auto'
         }}
       >
         <button className="pm-close" onClick={onClose}>✕</button>
