@@ -794,28 +794,34 @@ function WSPanel({ ip, onIpChange, status, onConnect, onDisconnect, lastSeen }) 
   const isConn  = status === "connected";
   const isRecon = status === "reconnecting";
   return (
-    <div className="ws-panel">
-      <div className={`ws-status-dot ${status}`} />
-      <div style={{flex:1}}>
-        <div style={{fontWeight:700, fontSize:".88rem", color:"var(--t1)"}}>
-          ESP32 WebSocket {isConn ? "— Connected" : isRecon ? "— Reconnecting…" : "— Disconnected"}
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="ws-panel">
+        <div className={`ws-status-dot ${status}`} />
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700, fontSize:".88rem", color:"var(--t1)"}}>
+            ESP32 WebSocket {isConn ? "— Connected" : isRecon ? "— Reconnecting…" : "— Disconnected"}
+          </div>
+          {lastSeen && <div className="ws-info-text">Last data: {lastSeen}</div>}
         </div>
-        {lastSeen && <div className="ws-info-text">Last data: {lastSeen}</div>}
+        <input
+          className="ws-ip-input"
+          value={ip}
+          onChange={e => onIpChange(e.target.value)}
+          placeholder="192.168.241.244"
+          disabled={isConn || isRecon}
+          autoFocus={false}
+        />
+        <button
+          className={`ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`}
+          onClick={isConn || isRecon ? onDisconnect : onConnect}
+        >
+          {isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect"}
+        </button>
       </div>
-      <input
-        className="ws-ip-input"
-        value={ip}
-        onChange={e => onIpChange(e.target.value)}
-        placeholder="192.168.241.244"
-        disabled={isConn || isRecon}
-        autoFocus={false}
-      />
-      <button
-        className={`ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`}
-        onClick={isConn || isRecon ? onDisconnect : onConnect}
-      >
-        {isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect"}
-      </button>
+      <div style={{ fontSize: '.72rem', color: 'var(--t3)', marginTop: 8, paddingLeft: 10, lineHeight: '1.4' }}>
+        <strong>HTTPS Note:</strong> Modern browsers block connections to local IPs from secure (HTTPS) sites. 
+        To connect via this live URL, click the <strong>🔒 lock icon</strong> in the address bar → Site Settings → Allow <strong>"Insecure Content"</strong>.
+      </div>
     </div>
   );
 }

@@ -1227,6 +1227,11 @@ function WSPanel({
   const isConn = status === "connected";
   const isRecon = status === "reconnecting";
   return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     className: "ws-panel"
   }, /*#__PURE__*/React.createElement("div", {
     className: `ws-status-dot ${status}`
@@ -1252,7 +1257,15 @@ function WSPanel({
   }), /*#__PURE__*/React.createElement("button", {
     className: `ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`,
     onClick: isConn || isRecon ? onDisconnect : onConnect
-  }, isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect"));
+  }, isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '.72rem',
+      color: 'var(--t3)',
+      marginTop: 8,
+      paddingLeft: 10,
+      lineHeight: '1.4'
+    }
+  }, /*#__PURE__*/React.createElement("strong", null, "HTTPS Note:"), " Modern browsers block connections to local IPs from secure (HTTPS) sites. To connect via this live URL, click the ", /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDD12 lock icon"), " in the address bar \u2192 Site Settings \u2192 Allow ", /*#__PURE__*/React.createElement("strong", null, "\"Insecure Content\""), "."));
 }
 
 // ──────────────────────────────────────────
