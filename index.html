@@ -39,12 +39,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
 <!-- Load Firebase config (ignored in git to protect credentials) -->
 <script src="config.js"></script>
 
-<!-- Firebase initialization — window.auth, window.db, window.rtdb available globally -->
+<!-- Firebase initialization — window.auth and window.db available globally -->
 <script>
   if (window.firebaseConfig) {
     firebase.initializeApp(window.firebaseConfig);
@@ -53,7 +52,6 @@
   }
   window.auth = firebase.auth();
   window.db = firebase.firestore();
-  window.rtdb = firebase.database();
 </script>
 
 

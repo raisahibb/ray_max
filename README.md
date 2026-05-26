@@ -117,13 +117,10 @@ Servo servoY;
 #define WIFI_SSID "YOUR_WIFI_SSID"
 #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
-#define API_KEY "AIzaSyDmF5Daj9wVqykkMMjvRktLMpfkt1LxY9k"
-#define DATABASE_URL "https://ray-max-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define API_KEY "YOUR_FIREBASE_API_KEY"
+#define DATABASE_URL "YOUR_FIREBASE_DATABASE_URL"
 
-// ⚡ FIX: Use two separate FirebaseData objects (one for stream, one for sending data)
-FirebaseData streamFbdo;
-FirebaseData dataFbdo;
-
+FirebaseData fbdo;
 FirebaseAuth auth;
 FirebaseConfig config;
 bool signupOK = false;
@@ -263,35 +260,32 @@ void setup() {
   }
   Serial.println("
 ✅ WiFi Connected");
-  
-  // Fetch Location BEFORE Firebase connects to save heap memory
-  getLocation();
 
   // Init Firebase
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
 
-  // Use Email & Password Auth
-  auth.user.email = "YOUR_REGISTERED_EMAIL";
-  auth.user.password = "YOUR_REGISTERED_PASSWORD";
-  signupOK = true;
+  // Sign up as anonymous user
+  if (Firebase.signUp(&config, &auth, "", "")) {
+    Serial.println("✅ Firebase Auth Successful");
+    signupOK = true;
+  } else {
+    Serial.printf("❌ Firebase Auth Error: %s
+", config.signer.signupError.message.c_str());
+  }
 
   config.token_status_callback = tokenStatusCallback;
-  
-  // Small optimization for memory
-  streamFbdo.setBSSLBufferSize(2048, 1024);
-  dataFbdo.setBSSLBufferSize(2048, 1024);
-  
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
 
-  // Start listening to "/commands" using streamFbdo
-  if (!Firebase.RTDB.beginStream(&streamFbdo, "/commands")) {
+  // Start listening to "/commands"
+  if (!Firebase.RTDB.beginStream(&fbdo, "/commands")) {
     Serial.printf("❌ Stream begin error: %s
-", streamFbdo.errorReason().c_str());
+", fbdo.errorReason().c_str());
   }
-  Firebase.RTDB.setStreamCallback(&streamFbdo, streamCallback, streamTimeoutCallback);
+  Firebase.RTDB.setStreamCallback(&fbdo, streamCallback, streamTimeoutCallback);
 
+  getLocation();
   Serial.println("🚀 SYSTEM READY (IoT Cloud Mode)");
 }
 
@@ -377,8 +371,8 @@ void loop() {
       json.set("azimuth", angleY);
       json.set("tracking_mode", trackingMode);
       
-      // Push to RTDB /telemetry node using dataFbdo (NOT streamFbdo)
-      Firebase.RTDB.setJSONAsync(&dataFbdo, "/telemetry", &json);
+      // Push to RTDB /telemetry node
+      Firebase.RTDB.setJSON(&fbdo, "/telemetry", &json);
     }
 
     Serial.printf("Mode:%s | Track:%s | X:%d Y:%d | Volt:%.2f

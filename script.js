@@ -167,7 +167,158 @@ async function fetchGeocode(lat, lon) {
    SECTION 1 — WEBSOCKET MANAGER
    Class : RaymaxWS
    Usage : const ws = new RaymaxWS("192.168.241.244");
+           ws.connect();
+           ws.onData(json => console.log(json));
+           ws.sendCommand(30, 180);
+═══════════════════════════════════════════════════════════════ */
+class RaymaxWS {
+  /**
+   * @param {string} ip   - IP address of the ESP32
+   * @param {number} port - WebSocket port (default 81)
+   */
+  constructor(ip, port = 81) {
+    this._ip         = ip;
+    this._port       = port;
+    this._socket     = null;
+    this._dataCallback   = null;   // set via onData()
+    this._statusCallback = null;   // set via onStatusChange()
+    this._reconnectTimer = null;
+    this._intentionalClose = false;
+  }
 
+  // ── PUBLIC API ────────────────────────────────────────────
+
+  /** Open a connection to ws://ip:port */
+  connect() {
+    this._intentionalClose = false;
+    this._openSocket();
+  }
+
+  /** Cleanly close the socket (no auto-reconnect after this) */
+  disconnect() {
+    this._intentionalClose = true;
+    this._clearReconnect();
+    if (this._socket) {
+      this._socket.close();
+      this._socket = null;
+    }
+  }
+
+  /** Returns true if the socket is currently open */
+  isConnected() {
+    return !!(this._socket && this._socket.readyState === WebSocket.OPEN);
+  }
+
+  /**
+   * Send a move command to the ESP32.
+   * @param {number} tilt     - Panel tilt angle  (degrees)
+   * @param {number} azimuth  - Panel azimuth angle (degrees)
+   */
+  sendCommand(tilt, azimuth) {
+    if (!this.isConnected()) {
+      console.warn("[RaymaxWS] Cannot send — not connected.");
+      return;
+    }
+    const payload = JSON.stringify({ cmd: "move", tilt, azimuth });
+    this._socket.send(payload);
+  }
+
+  /**
+   * Send command to switch ESP32 to Auto (LDR tracking) mode.
+   */
+  sendAutoMode() {
+    if (!this.isConnected()) {
+      return;
+    }
+    const payload = JSON.stringify({ cmd: "auto" });
+    this._socket.send(payload);
+  }
+
+  /**
+   * Register a callback that fires whenever a JSON message
+   * arrives from the ESP32.
+   * @param {function} callback - receives a parsed JSON object
+   */
+  onData(callback) {
+    this._dataCallback = callback;
+  }
+
+  /**
+   * Register a callback that fires on connection-state changes.
+   * @param {function} callback - receives "connected" | "disconnected" | "reconnecting"
+   */
+  onStatusChange(callback) {
+    this._statusCallback = callback;
+  }
+
+  // ── PRIVATE HELPERS ────────────────────────────────────────
+
+  _openSocket() {
+    const url = `ws://${this._ip}:${this._port}`;
+    try {
+      this._socket = new WebSocket(url);
+    } catch (e) {
+      console.error("[RaymaxWS] WebSocket construction failed:", e);
+      this._scheduleReconnect();
+      return;
+    }
+
+    this._socket.onopen = () => {
+      console.log(`[RaymaxWS] Connected to ${url}`);
+      this._clearReconnect();
+      this._emitStatus("connected");
+    };
+
+    this._socket.onmessage = (event) => {
+      try {
+        const json = JSON.parse(event.data);
+        if (this._dataCallback) this._dataCallback(json);
+      } catch (e) {
+        console.warn("[RaymaxWS] Non-JSON message ignored:", event.data);
+      }
+    };
+
+    this._socket.onerror = (err) => {
+      console.warn("[RaymaxWS] Socket error:", err);
+      // onclose will fire next and handle reconnect
+    };
+
+    this._socket.onclose = () => {
+      console.log("[RaymaxWS] Socket closed.");
+      this._socket = null;
+      if (!this._intentionalClose) {
+        this._emitStatus("disconnected");
+        this._scheduleReconnect();
+      }
+    };
+  }
+
+  _scheduleReconnect() {
+    if (this._reconnectTimer) return; // already scheduled
+    this._emitStatus("reconnecting");
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      if (!this._intentionalClose) {
+        console.log("[RaymaxWS] Attempting reconnect…");
+        this._openSocket();
+      }
+    }, 3000); // retry every 3 seconds
+  }
+
+  _clearReconnect() {
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
+    }
+  }
+
+  _emitStatus(status) {
+    if (this._statusCallback) this._statusCallback(status);
+  }
+}
+
+// Expose globally so App.jsx / inline scripts can use it
+window.RaymaxWS = RaymaxWS;
 
 
 /* ═══════════════════════════════════════════════════════════════
