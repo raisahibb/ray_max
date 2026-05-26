@@ -2411,6 +2411,14 @@ input[type=range]::-webkit-slider-thumb:hover {
   }
 }
 
+/* iPad & Tablet overrides to fix wrapping gaps */
+@media (max-width: 1100px) and (min-width: 481px) {
+  .widget.ldr-widget, 
+  .widget.serial-widget {
+    grid-column: 1 / -1 !important;
+  }
+}
+
 /* Specific overrides for small phones */
 @media (max-width: 480px) {
   .widget.ldr-widget, 
