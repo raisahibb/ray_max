@@ -1217,6 +1217,8 @@ function AlertBar({
 // ──────────────────────────────────────────
 
 function WSPanel({
+  ip,
+  onIpChange,
   status,
   onConnect,
   onDisconnect,
@@ -1243,12 +1245,27 @@ function WSPanel({
       fontSize: ".88rem",
       color: "var(--t1)"
     }
-  }, "Firebase IoT Cloud ", isConn ? "— Connected" : isRecon ? "— Connecting…" : "— Disconnected"), lastSeen && /*#__PURE__*/React.createElement("div", {
+  }, "ESP32 WebSocket ", isConn ? "— Connected" : isRecon ? "— Reconnecting…" : "— Disconnected"), lastSeen && /*#__PURE__*/React.createElement("div", {
     className: "ws-info-text"
-  }, "Last data: ", lastSeen)), /*#__PURE__*/React.createElement("button", {
+  }, "Last data: ", lastSeen)), /*#__PURE__*/React.createElement("input", {
+    className: "ws-ip-input",
+    value: ip,
+    onChange: e => onIpChange(e.target.value),
+    placeholder: "192.168.241.244",
+    disabled: isConn || isRecon,
+    autoFocus: false
+  }), /*#__PURE__*/React.createElement("button", {
     className: `ws-connect-btn${isConn || isRecon ? " disconnected" : ""}`,
     onClick: isConn || isRecon ? onDisconnect : onConnect
-  }, isConn ? "🔌 Disconnect" : isRecon ? "⏳ Connecting…" : "🔗 Connect")));
+  }, isConn ? "🔌 Disconnect" : isRecon ? "⏳ Reconnecting…" : "🔗 Connect")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: '.72rem',
+      color: 'var(--t3)',
+      marginTop: 8,
+      paddingLeft: 10,
+      lineHeight: '1.4'
+    }
+  }, /*#__PURE__*/React.createElement("strong", null, "HTTPS Note:"), " Modern browsers block connections to local IPs from secure (HTTPS) sites. To connect via this live URL, click the ", /*#__PURE__*/React.createElement("strong", null, "\uD83D\uDD12 lock icon"), " in the address bar \u2192 Site Settings \u2192 Allow ", /*#__PURE__*/React.createElement("strong", null, "\"Insecure Content\""), "."));
 }
 
 // ──────────────────────────────────────────
@@ -2764,62 +2781,42 @@ function App() {
   }, [currentUser]); // ← gate on currentUser so GPS/weather only start after auth confirms
 
   // ── Mode change
-  // ── Firebase RTDB auto-connect on auth
-  useEffect(() => {
-    if (!currentUser || !window.rtdb) return;
-    setWsStatus("reconnecting");
-    const telemetryRef = window.rtdb.ref("telemetry");
-    const onTelemetry = telemetryRef.on("value", snapshot => {
-      const data = snapshot.val();
-      if (data) {
-        setEsp32Data(data);
-        setWsStatus("connected");
-        setWsLastSeen(new Date().toLocaleTimeString("en-IN", {
-          hour12: false
-        }));
-      }
-    });
-    const connectedRef = window.rtdb.ref(".info/connected");
-    const onConnected = connectedRef.on("value", snap => {
-      if (snap.val() === true) {
-        showToast("🔌", "Connected to Firebase IoT Cloud!");
-      } else {
-        setWsStatus("disconnected");
-      }
-    });
-    return () => {
-      telemetryRef.off("value", onTelemetry);
-      connectedRef.off("value", onConnected);
-      setWsStatus("disconnected");
-      setEsp32Data(null);
-    };
-  }, [currentUser]);
+  // ── WebSocket connect / disconnect
   const handleWsConnect = () => {
-    // Now handled automatically via useEffect
-    showToast("✅", "System connects automatically on login!");
+    if (wsRef.current) wsRef.current.disconnect();
+    const ws = new RaymaxWS(wsIP, 81);
+    ws.onStatusChange(status => {
+      setWsStatus(status);
+      showToast(status === "connected" ? "🔌" : status === "reconnecting" ? "🔄" : "❌", status === "connected" ? "ESP32 Connected!" : status === "reconnecting" ? "Reconnecting to ESP32…" : "ESP32 Disconnected");
+    });
+    ws.onData(data => {
+      setEsp32Data(data);
+      setWsLastSeen(new Date().toLocaleTimeString("en-IN", {
+        hour12: false
+      }));
+    });
+    ws.connect();
+    wsRef.current = ws;
   };
   const handleWsDisconnect = () => {
-    // No manual disconnect needed for IoT cloud
+    if (wsRef.current) wsRef.current.disconnect();
+    setWsStatus("disconnected");
+    setEsp32Data(null);
   };
   const handleModeChange = m => {
     if (m === "auto") {
       setMode("auto");
       modeRef.current = "auto";
-      if (window.rtdb) window.rtdb.ref("commands").set({
-        cmd: "auto",
-        tilt: panelTilt,
-        azimuth: panelAzimuth
-      });
+      // Send auto command to ESP32 if connected
+      if (wsRef.current && wsRef.current.isConnected()) {
+        wsRef.current.sendAutoMode();
+      }
       showToast("⚡", "Auto tracking enabled — ESP32 will use LDR or Sun API");
+      // Trigger doUpdate instantly to align the panel
       setTimeout(doUpdate, 0);
     } else {
       setMode("manual");
       modeRef.current = "manual";
-      if (window.rtdb) window.rtdb.ref("commands").set({
-        cmd: "move",
-        tilt: panelTilt,
-        azimuth: panelAzimuth
-      });
       showToast("🎛", "Manual control active");
     }
   };
@@ -2917,6 +2914,8 @@ function App() {
     panelAzimuth: panelAzimuth,
     pathD: sunPathD
   })), /*#__PURE__*/React.createElement(WSPanel, {
+    ip: wsIP,
+    onIpChange: setWsIP,
     status: wsStatus,
     onConnect: handleWsConnect,
     onDisconnect: handleWsDisconnect,
@@ -2930,19 +2929,15 @@ function App() {
     wsStatus: wsStatus,
     onSliderX: v => {
       setPanelTilt(v);
-      if (window.rtdb) window.rtdb.ref("commands").set({
-        cmd: "move",
-        tilt: v,
-        azimuth: panelAzimuth
-      });
+      if (wsRef.current && wsRef.current.isConnected()) {
+        wsRef.current.sendCommand(v, panelAzimuth);
+      }
     },
     onSliderY: v => {
       setPanelAzimuth(v);
-      if (window.rtdb) window.rtdb.ref("commands").set({
-        cmd: "move",
-        tilt: panelTilt,
-        azimuth: v
-      });
+      if (wsRef.current && wsRef.current.isConnected()) {
+        wsRef.current.sendCommand(panelTilt, v);
+      }
     }
   }), /*#__PURE__*/React.createElement("div", {
     className: "widgets-section"
