@@ -1075,7 +1075,7 @@ function HistoryCharts({ tick, theme }) {
 // ──────────────────────────────────────────
 // PROFILE OVERLAY PORTAL
 // ──────────────────────────────────────────
-function ProfileModal({ isOpen, onClose, currentUser }) {
+const ProfileModal = React.memo(function ProfileModal({ isOpen, onClose, currentUser }) {
   const [linking, setLinking]         = useState(false);
   const [linkInput, setLinkInput]     = useState('');
   const [passwordForm, setPasswordForm] = useState({ current: '', newPass: '', confirm: '' });
@@ -1501,7 +1501,9 @@ function ProfileModal({ isOpen, onClose, currentUser }) {
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return prevProps.isOpen === nextProps.isOpen && prevProps.currentUser === nextProps.currentUser;
+});
 
 // ──────────────────────────────────────────
 // MAIN APP

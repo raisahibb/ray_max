@@ -1565,7 +1565,7 @@ function HistoryCharts({
 // ──────────────────────────────────────────
 // PROFILE OVERLAY PORTAL
 // ──────────────────────────────────────────
-function ProfileModal({
+const ProfileModal = React.memo(function ProfileModal({
   isOpen,
   onClose,
   currentUser
@@ -2148,7 +2148,9 @@ function ProfileModal({
     disabled: linking,
     onClick: handleUpdatePassword
   }, linking ? 'Updating…' : 'Update Password'))));
-}
+}, (prevProps, nextProps) => {
+  return prevProps.isOpen === nextProps.isOpen && prevProps.currentUser === nextProps.currentUser;
+});
 
 // ──────────────────────────────────────────
 // MAIN APP

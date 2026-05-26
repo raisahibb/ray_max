@@ -2317,7 +2317,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 /* Navbar and overall layout for tablets/phones */
 @media (max-width: 768px) {
   body {
-    padding-top: 130px; /* Increased to clear floating tall mobile navbar */
+    padding-top: 145px; /* Increased to clear floating tall mobile navbar and alert bar */
   }
   .navbar {
     top: 12px;
@@ -2354,7 +2354,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   }
 
   .alert-bar {
-    top: 112px; /* Adjusted to clear the floating tall mobile navbar bottom (~102px) */
+    top: 128px; /* Lowered further to guarantee clearing the floating mobile navbar */
     width: max-content;
     max-width: calc(100% - 24px);
     padding: 6px 16px;
