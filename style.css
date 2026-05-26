@@ -2326,7 +2326,7 @@ input[type=range]::-webkit-slider-thumb:hover {
 /* Navbar and overall layout for tablets/phones */
 @media (max-width: 768px) {
   body {
-    padding-top: 80px; /* Reduced to remove gap on mobile */
+    padding-top: 68px; /* Reduced to perfectly match navbar height */
   }
   .navbar {
     top: 12px;
