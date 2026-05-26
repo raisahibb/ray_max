@@ -2764,17 +2764,12 @@ function App() {
   }, [currentUser]); // ← gate on currentUser so GPS/weather only start after auth confirms
 
   // ── Mode change
-  // ── WebSocket connect / disconnect
-  const handleWsConnect = () => {
-    if (!window.rtdb) {
-      showToast("❌", "Firebase RTDB not initialized");
-      return;
-    }
+  // ── Firebase RTDB auto-connect on auth
+  useEffect(() => {
+    if (!currentUser || !window.rtdb) return;
     setWsStatus("reconnecting");
-
-    // Connect to telemetry
     const telemetryRef = window.rtdb.ref("telemetry");
-    telemetryRef.on("value", snapshot => {
+    const onTelemetry = telemetryRef.on("value", snapshot => {
       const data = snapshot.val();
       if (data) {
         setEsp32Data(data);
@@ -2784,24 +2779,27 @@ function App() {
         }));
       }
     });
-
-    // Check online status
     const connectedRef = window.rtdb.ref(".info/connected");
-    connectedRef.on("value", snap => {
+    const onConnected = connectedRef.on("value", snap => {
       if (snap.val() === true) {
         showToast("🔌", "Connected to Firebase IoT Cloud!");
       } else {
         setWsStatus("disconnected");
       }
     });
+    return () => {
+      telemetryRef.off("value", onTelemetry);
+      connectedRef.off("value", onConnected);
+      setWsStatus("disconnected");
+      setEsp32Data(null);
+    };
+  }, [currentUser]);
+  const handleWsConnect = () => {
+    // Now handled automatically via useEffect
+    showToast("✅", "System connects automatically on login!");
   };
   const handleWsDisconnect = () => {
-    if (window.rtdb) {
-      window.rtdb.ref("telemetry").off();
-      window.rtdb.ref(".info/connected").off();
-    }
-    setWsStatus("disconnected");
-    setEsp32Data(null);
+    // No manual disconnect needed for IoT cloud
   };
   const handleModeChange = m => {
     if (m === "auto") {
