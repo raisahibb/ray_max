@@ -2311,13 +2311,22 @@ input[type=range]::-webkit-slider-thumb:hover {
 }
 
 /* ──────────────────────────────────────────
+   TABLET RESPONSIVENESS
+   ────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .nav-side-cluster {
+    display: none !important;
+  }
+}
+
+/* ──────────────────────────────────────────
    MOBILE RESPONSIVENESS AND POLISH
    ────────────────────────────────────────── */
 
 /* Navbar and overall layout for tablets/phones */
 @media (max-width: 768px) {
   body {
-    padding-top: 128px; /* Restored for compact mobile spacing */
+    padding-top: 80px; /* Reduced to remove gap on mobile */
   }
   .navbar {
     top: 12px;
@@ -2354,10 +2363,7 @@ input[type=range]::-webkit-slider-thumb:hover {
   }
 
   .alert-bar {
-    top: 110px; /* Positioned tightly below the floating mobile navbar */
-    width: max-content;
-    max-width: calc(100% - 24px);
-    padding: 6px 16px;
+    display: none !important; /* Removed as requested */
   }
 
   .scene-wrap {

@@ -318,7 +318,7 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
                   boxShadow: '0 2px 10px rgba(10,132,255,.15)',
                 }}>
                   <span style={{ fontSize: '1rem' }}>🌐</span>
-                  <span>Sun API (Sim)</span>
+                  <span style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: '1.2' }}>Sun API (Sim)</span>
                 </div>
                 <div style={{
                   fontSize: '.62rem', color: 'var(--t3)', textAlign: 'center', maxWidth: 90
@@ -346,7 +346,7 @@ function ControlPanel({ mode, panelTilt, panelAzimuth, onModeChange, onSliderX, 
                     : '0 2px 10px rgba(255,159,10,.15)',
                 }}>
                   <span style={{ fontSize: '1rem' }}>{isLDR ? '☀️' : '🌐'}</span>
-                  <span>{isLDR ? 'LDR Sensors' : 'Sun API'}</span>
+                  <span style={{ whiteSpace: 'normal', textAlign: 'center', lineHeight: '1.2' }}>{isLDR ? 'LDR Sensors' : 'Sun API'}</span>
                 </div>
                 <div style={{
                   fontSize: '.62rem', color: 'var(--t3)', textAlign: 'center', maxWidth: 90
@@ -1267,13 +1267,7 @@ const ProfileModal = React.memo(function ProfileModal({ isOpen, onClose, current
               style={{ color: value ? 'var(--green)' : 'var(--t3)' }}
               title={value}
             >
-              {value && value.length > 16 ? (
-                <marquee scrollamount="2" behavior="scroll" direction="left" style={{ width: '100%', display: 'inline-block', verticalAlign: 'bottom' }}>
-                  {value}
-                </marquee>
-              ) : (
-                value || 'Not linked'
-              )}
+              {value || 'Not linked'}
             </div>
           </div>
         </div>

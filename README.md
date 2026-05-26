@@ -15,7 +15,8 @@
   [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](#)
 
   <br />
-  <h3>🌐 <a href="https://raymax.web.app" target="_blank">Live Web Dashboard Demo</a></h3>
+  <h2>🚀 <a href="https://raymax.web.app" target="_blank">SEE IT LIVE HERE — Official Web Dashboard</a> 🚀</h2>
+  <p><strong>Note:</strong> You can view and interact with the live deployed site immediately without downloading anything!</p>
 </div>
 
 ---

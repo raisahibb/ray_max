@@ -475,7 +475,13 @@ function ControlPanel({
     style: {
       fontSize: '1rem'
     }
-  }, "\uD83C\uDF10"), /*#__PURE__*/React.createElement("span", null, "Sun API (Sim)")), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83C\uDF10"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      whiteSpace: 'normal',
+      textAlign: 'center',
+      lineHeight: '1.2'
+    }
+  }, "Sun API (Sim)")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: '.62rem',
       color: 'var(--t3)',
@@ -511,7 +517,13 @@ function ControlPanel({
     style: {
       fontSize: '1rem'
     }
-  }, isLDR ? '☀️' : '🌐'), /*#__PURE__*/React.createElement("span", null, isLDR ? 'LDR Sensors' : 'Sun API')), /*#__PURE__*/React.createElement("div", {
+  }, isLDR ? '☀️' : '🌐'), /*#__PURE__*/React.createElement("span", {
+    style: {
+      whiteSpace: 'normal',
+      textAlign: 'center',
+      lineHeight: '1.2'
+    }
+  }, isLDR ? 'LDR Sensors' : 'Sun API')), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: '.62rem',
       color: 'var(--t3)',
@@ -1834,16 +1846,7 @@ const ProfileModal = React.memo(function ProfileModal({
         color: value ? 'var(--green)' : 'var(--t3)'
       },
       title: value
-    }, value && value.length > 16 ? /*#__PURE__*/React.createElement("marquee", {
-      scrollamount: "2",
-      behavior: "scroll",
-      direction: "left",
-      style: {
-        width: '100%',
-        display: 'inline-block',
-        verticalAlign: 'bottom'
-      }
-    }, value) : value || 'Not linked'))), isPrimary ?
+    }, value || 'Not linked'))), isPrimary ?
     /*#__PURE__*/
     // Primary account — cannot unlink
     React.createElement("span", {
