@@ -92,10 +92,14 @@ Copy and upload the following code to your ESP32 using the Arduino IDE. Make sur
 
 ```cpp
 #include <WiFi.h>
-#include <WebSocketsServer.h>
+#include <Firebase_ESP_Client.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
 #include <HTTPClient.h>
+
+// Provide the token generation process info.
+#include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
 
 // ================== PINS ==================
 #define LDR_TOP     34
@@ -108,22 +112,29 @@ Copy and upload the following code to your ESP32 using the Arduino IDE. Make sur
 
 Servo servoX;
 Servo servoY;
-WebSocketsServer webSocket = WebSocketsServer(81);
+
+// ================== FIREBASE ==================
+#define WIFI_SSID "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+
+#define API_KEY "YOUR_FIREBASE_API_KEY"
+#define DATABASE_URL "YOUR_FIREBASE_DATABASE_URL"
+
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
+bool signupOK = false;
 
 // ================== VARIABLES ==================
 int angleX = 90;
 int angleY = 90;
 bool autoMode = false;
-
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
+String trackingMode = "MANUAL";
 
 // SUN DATA
 float latitude = 0, longitude = 0;
 float azimuth = 0, elevation = 0;
 bool locationFetched = false;
-
-String trackingMode = "MANUAL";
 
 // TIMERS
 unsigned long lastRead = 0;
@@ -157,11 +168,9 @@ float readSolarVoltage() {
 void getLocation() {
   HTTPClient http;
   http.begin("http://ip-api.com/json");
-
   if (http.GET() == 200) {
     StaticJsonDocument<300> doc;
     deserializeJson(doc, http.getString());
-
     latitude = doc["lat"];
     longitude = doc["lon"];
     locationFetched = true;
@@ -176,14 +185,11 @@ void getSunPosition() {
                String(latitude) +
                "&longitude=" + String(longitude) +
                "&hourly=solar_elevation,solar_azimuth";
-
   HTTPClient http;
   http.begin(url);
-
   if (http.GET() == 200) {
     StaticJsonDocument<2000> doc;
     deserializeJson(doc, http.getString());
-
     azimuth = doc["hourly"]["solar_azimuth"][0];
     elevation = doc["hourly"]["solar_elevation"][0];
   }
@@ -193,40 +199,48 @@ void getSunPosition() {
 void moveFromSun() {
   angleY = map(azimuth, 0, 360, 0, 180);
   angleX = map(elevation, 0, 90, 0, 140);
-
   angleX = constrain(angleX, 0, 140);
   angleY = constrain(angleY, 10, 180);
-
   servoX.write(angleX);
   servoY.write(angleY);
 }
 
-// WEBSOCKET EVENT HANDLER (Receives commands from Website)
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
-  if (type == WStype_TEXT) {
-    StaticJsonDocument<200> doc;
-    DeserializationError error = deserializeJson(doc, payload);
-    if (error) return;
+// Firebase Stream Callback (Listens to website commands)
+void streamCallback(FirebaseStream data) {
+  if (data.dataType() == "json") {
+    FirebaseJson *json = data.jsonObjectPtr();
+    FirebaseJsonData result;
     
-    String cmd = doc["cmd"];
+    json->get(result, "cmd");
+    String cmd = result.stringValue;
+    
     if (cmd == "auto") {
       autoMode = true;
       trackingMode = "AUTO";
-      Serial.println("AUTO MODE ON (via Web)");
+      Serial.println("⚡ AUTO MODE ON (via Cloud)");
     } else if (cmd == "move") {
       autoMode = false;
       trackingMode = "MANUAL";
-      int t = doc["tilt"];
-      int a = doc["azimuth"];
+      
+      json->get(result, "tilt");
+      int t = result.intValue;
+      
+      json->get(result, "azimuth");
+      int a = result.intValue;
       
       angleX = constrain(t, 0, 140);
       angleY = constrain(a, 10, 180);
       
       servoX.write(angleX);
       servoY.write(angleY);
-      Serial.printf("Manual Move (via Web) → X:%d Y:%d\n", angleX, angleY);
+      Serial.printf("🎛 Manual Move (via Cloud) → X:%d Y:%d
+", angleX, angleY);
     }
   }
+}
+
+void streamTimeoutCallback(bool timeout) {
+  if (timeout) Serial.println("Firebase Stream timeout, reconnecting...");
 }
 
 // ================== SETUP ==================
@@ -235,67 +249,51 @@ void setup() {
 
   servoX.attach(SERVO_X);
   servoY.attach(SERVO_Y);
-
   servoX.write(angleX);
   servoY.write(angleY);
 
-  WiFi.begin(ssid, password);
-  Serial.print("Connecting...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  Serial.println("
+✅ WiFi Connected");
 
-  Serial.println("\n✅ WiFi Connected");
-  Serial.println(WiFi.localIP());
+  // Init Firebase
+  config.api_key = API_KEY;
+  config.database_url = DATABASE_URL;
 
-  // Attach WebSocket event handler and start
-  webSocket.onEvent(webSocketEvent);
-  webSocket.begin();
+  // Sign up as anonymous user
+  if (Firebase.signUp(&config, &auth, "", "")) {
+    Serial.println("✅ Firebase Auth Successful");
+    signupOK = true;
+  } else {
+    Serial.printf("❌ Firebase Auth Error: %s
+", config.signer.signupError.message.c_str());
+  }
+
+  config.token_status_callback = tokenStatusCallback;
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+
+  // Start listening to "/commands"
+  if (!Firebase.RTDB.beginStream(&fbdo, "/commands")) {
+    Serial.printf("❌ Stream begin error: %s
+", fbdo.errorReason().c_str());
+  }
+  Firebase.RTDB.setStreamCallback(&fbdo, streamCallback, streamTimeoutCallback);
 
   getLocation();
-
-  Serial.println("🚀 SYSTEM READY");
-  Serial.println("Commands: manual | auto | X,Y");
+  Serial.println("🚀 SYSTEM READY (IoT Cloud Mode)");
 }
 
 // ================== LOOP ==================
 void loop() {
-  webSocket.loop();
-
-  // ===== MANUAL + MODE CONTROL (Serial) =====
-  if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-
-    if (input == "auto") {
-      autoMode = true;
-      trackingMode = "AUTO";
-      Serial.println("AUTO MODE ON");
-    }
-    else if (input == "manual") {
-      autoMode = false;
-      trackingMode = "MANUAL";
-      Serial.println("MANUAL MODE ON");
-    }
-    else if (input.indexOf(',') > 0 && !autoMode) {
-      int comma = input.indexOf(',');
-      int x = input.substring(0, comma).toInt();
-      int y = input.substring(comma + 1).toInt();
-
-      angleX = constrain(x, 0, 140);
-      angleY = constrain(y, 10, 180);
-
-      servoX.write(angleX);
-      servoY.write(angleY);
-
-      Serial.printf("Manual Move → X:%d Y:%d\n", angleX, angleY);
-    }
-  }
-
+  
   // ===== AUTO TRACKING =====
   if (autoMode && millis() - lastRead >= 200) {
-    // Store current readings for live dashboard
     currentTop = readLDR(LDR_TOP);
     currentBottom = readLDR(LDR_BOTTOM);
     currentLeft = readLDR(LDR_LEFT);
@@ -315,19 +313,16 @@ void loop() {
       int right = sumRight / count;
 
       bool ldrFail = false;
-
       if (abs(top - bottom) < 50 && abs(left - right) < 50) {
         ldrFail = true;
       }
 
       if (!ldrFail) {
-        // ===== LDR MODE =====
+        // LDR MODE
         int threshold = 80;
         int step = 8;
-
         if (top > bottom + threshold) angleX -= step;
         else if (bottom > top + threshold) angleX += step;
-
         if (left > right + threshold) angleY -= step;
         else if (right > left + threshold) angleY += step;
 
@@ -336,11 +331,9 @@ void loop() {
 
         servoX.write(angleX);
         servoY.write(angleY);
-
         trackingMode = "LDR";
-
       } else {
-        // ===== SUN MODE =====
+        // SUN MODE
         if (locationFetched) {
           getSunPosition();
           moveFromSun();
@@ -351,15 +344,13 @@ void loop() {
       sumTop = sumBottom = sumLeft = sumRight = 0;
       count = 0;
     }
-
     lastRead = millis();
   }
 
-  // ===== TELEMETRY TRANSMISSION (Sends to Website) =====
+  // ===== TELEMETRY PUSH TO CLOUD (1 Hz) =====
   if (millis() - lastPrint >= 1000) {
     float volt = readSolarVoltage();
     
-    // Ensure live values even in manual mode
     if (!autoMode) {
         currentTop = readLDR(LDR_TOP);
         currentBottom = readLDR(LDR_BOTTOM);
@@ -367,24 +358,25 @@ void loop() {
         currentRight = readLDR(LDR_RIGHT);
     }
 
-    // 1. Send data to Website via WebSocket
-    StaticJsonDocument<256> doc;
-    doc["ldr_top"] = currentTop;
-    doc["ldr_bottom"] = currentBottom;
-    doc["ldr_left"] = currentLeft;
-    doc["ldr_right"] = currentRight;
-    doc["solar_voltage"] = volt;
-    doc["temperature"] = 28.5 + random(-10, 10) / 10.0; // Simulated board temp
-    doc["tilt"] = angleX;
-    doc["azimuth"] = angleY;
-    doc["tracking_mode"] = trackingMode;
+    if (Firebase.ready() && signupOK) {
+      // Build JSON document
+      FirebaseJson json;
+      json.set("ldr_top", currentTop);
+      json.set("ldr_bottom", currentBottom);
+      json.set("ldr_left", currentLeft);
+      json.set("ldr_right", currentRight);
+      json.set("solar_voltage", volt);
+      json.set("temperature", 28.5 + random(-10, 10) / 10.0);
+      json.set("tilt", angleX);
+      json.set("azimuth", angleY);
+      json.set("tracking_mode", trackingMode);
+      
+      // Push to RTDB /telemetry node
+      Firebase.RTDB.setJSON(&fbdo, "/telemetry", &json);
+    }
 
-    String payload;
-    serializeJson(doc, payload);
-    webSocket.broadcastTXT(payload);
-
-    // 2. Print to Serial Monitor
-    Serial.printf("Mode:%s | Track:%s | X:%d Y:%d | Volt:%.2f\n",
+    Serial.printf("Mode:%s | Track:%s | X:%d Y:%d | Volt:%.2f
+",
                   autoMode ? "AUTO" : "MANUAL",
                   trackingMode.c_str(),
                   angleX, angleY,
