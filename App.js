@@ -2930,13 +2930,13 @@ function App() {
     onSliderX: v => {
       setPanelTilt(v);
       if (wsRef.current && wsRef.current.isConnected()) {
-        wsRef.current.sendCommand(v, panelAzimuth);
+        wsRef.current.sendCommand(panelAzimuth, v); // X slider → azimuth → X motor
       }
     },
     onSliderY: v => {
       setPanelAzimuth(v);
       if (wsRef.current && wsRef.current.isConnected()) {
-        wsRef.current.sendCommand(panelTilt, v);
+        wsRef.current.sendCommand(v, panelTilt); // Y slider → tilt → Y motor
       }
     }
   }), /*#__PURE__*/React.createElement("div", {
